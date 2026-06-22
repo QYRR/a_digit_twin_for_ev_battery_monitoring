@@ -32,6 +32,12 @@
 *.alg
 *.xdy
 
+# Build output directory
+build/
+
+# Inkscape SVG conversion artifacts
+svg-inkscape/
+
 # OS files
 .DS_Store
 Thumbs.db
