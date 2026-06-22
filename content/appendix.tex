@@ -1,0 +1,47 @@
+% appendix
+\begin{comment}
+    \chapter{Galileo}
+    \label{sec:appendix_galileo}
+    
+    %\lstinputlisting[]{} % for source code files directly
+    % lstlisting environment for direct inclusion
+    \begin{lstlisting}[language=Python]
+        import os
+        os.system("echo 1")
+    \end{lstlisting}
+    
+    % for computational complexity
+    $\mathcal{O}\left(n\log{n}\right)$
+    
+    % verbatim
+    \verb+numpy+
+\end{comment}
+
+
+\chapter{CAGR Calculation and Interpretation}
+\label{sec:appendix_cagr}
+
+The Compound Annual Growth Rate (CAGR) is widely used to evaluate the average annual growth rate of a value over a period of time, assuming compounding.
+
+\[
+\text{CAGR} = \left( \frac{V_f}{V_i} \right)^{\frac{1}{n}} - 1
+\]
+
+\noindent
+Where:
+\begin{itemize}
+  \item \( V_f \): Final value
+  \item \( V_i \): Initial value
+  \item \( n \): Number of years
+\end{itemize}
+
+\noindent
+Example: From 2020 to 2024, the value increased from 3 to 16.6. The CAGR is:
+
+\[
+\left( \frac{16.6}{3} \right)^{\frac{1}{4}} - 1 \approx 0.534 \text{ or } 53.4\%
+\]
+
+This metric is used in Chapter~\ref{introduction} to analyze EV market trends.
+
+

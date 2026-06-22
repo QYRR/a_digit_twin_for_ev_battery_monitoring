@@ -1,0 +1,86 @@
+\chapter{Introduction}
+\label{introduction}
+
+\begin{comment}
+    introduction: motivation (why we are using batteries, due to carbon print and sustainability), problem you target and why it is a problem, then your solution, thesis outline.
+\end{comment}
+
+\section{Motivation}
+
+\subsection*{Industry background: the huge EV market}
+
+The global electric vehicle (EV) market has experienced rapid growth in recent years, driven by technological advances, supportive government policies, and increasing environmental awareness.
+
+According to the International Energy Agency (IEA), in the past 5 years, global electric vehicle sales rose from 3 million in 2020 to more than 16.6 million in 2024 \autocite{iea2024ev_sales}, representing a compound annual growth rate (CAGR) of approximately 53.4\%.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/ch1_EV_sales.png}
+    \caption{Electric vehicle sales, 2012-2024 \autocite{iea2024ev_sales}}
+    \label{fig:ev_sales}
+\end{figure}
+
+Based on current policies and trends, the rollout of electric vehicles is set to avoid the need for nearly 6 million barrels of oil per day by 2030 \autocite{iea2024ev_outlook}, significantly contributing to the reduction of fossil fuel dependence and the achievement of global carbon neutrality goals.
+
+
+\subsection*{Technical fundamental: the importance of battery monitoring}
+
+As the primary energy source in electric vehicles, the battery plays a critical role. Therefore, accurate monitoring of its state has become increasingly important in ensuring safety, extending battery life, and maintaining optimal vehicle performance under varying operating conditions. There are two critical parameters in the battery system: state of charge (SoC) and state of health (SoH). SoC reflects the remaining usable energy in the battery, while SoH indicates the long-term performance and level of degradation of the battery relative to its original condition.
+
+\begin{equation}
+\label{eq:soc}
+SoC(t) = SoC(t_0) - \frac{1}{C_\text{nom}} \int_{t_0}^{t} I(\tau)\, d\tau
+\end{equation}
+\text{where:}
+\begin{itemize}
+  \item $\text{SoC}(t)$ is the SoC at time $t$;
+  \item $\text{SoC}(t_0)$ is the initial SoC at time $t_0$;
+  \item $C_\text{nom}$ is the nominal capacity of the battery (in Ah);
+  \item $I(\tau)$ is the instantaneous current at time $\tau$ (positive during discharge).
+\end{itemize}
+
+\begin{equation}
+\label{eq:soh}
+SoH = \frac{C_\text{current}}{C_\text{initial}} \times 100\%
+\end{equation}
+\text{where:}
+\begin{itemize}
+  \item $C_\text{current}$ is the current full charge capacity of the battery;
+  \item $C_\text{initial}$ is the initial capacity when the battery was new.
+\end{itemize}
+
+However, the SoC estimation could be inaccurate, leading to overcharging or deep discharging, both of which accelerate battery degradation. Similarly, unreliable SoH estimation can result in unexpected performance drops, insufficient power delivery, or premature battery replacement.
+
+In this context, battery monitoring is not only a process of data collection, but also involves the development of accurate models to estimate key indicators such as SoC and SoH, which are essential for optimizing charging strategies, maximizing usable battery lifespan, and ensuring long-term system safety. Thus, battery monitoring has become a foundational task in EV design.
+
+
+\section{Problem Statement}
+
+Existing approaches for SoC and SoH estimation generally fall into two main categories: model-based methods and data-driven methods.
+
+Model-based methods can be divided into electrochemical models and equivalent circuit models (ECMs). Electrochemical models are grounded in first-principles physics, capturing the internal electrochemical reactions and diffusion processes within the battery. These models provide high accuracy and strong generalization, but are computationally intensive, limiting their application in real-time embedded systems. In contrast, ECMs simplify battery behavior into resistor-capacitor networks, enabling real-time estimation when combined with filters such as the Kalman filter. Although computationally efficient, ECMs are prone to performance degradation over time due to parameter drift and unmodeled nonlinearities.
+
+In response, data-driven approaches, particularly machine learning (ML) and deep learning (DL), have gained attention as effective alternatives. These methods can learn complex nonlinear relationships between measurable signals and internal battery states without relying on explicit physical models. They also demonstrate strong generalization across varying operating conditions and aging stages. Moreover, several studies have proposed joint estimation frameworks for SoC and SoH. This is based on the observation that these two metrics are closely coupled in real-world scenarios. Joint modeling can improve estimation accuracy and consistency, which is crucial for reliable battery management.
+
+However, most ML-based SoC and SoH estimation studies do not reach the stage of on-board deployment. Many treat implementation on automotive-grade hardware as future work. Others assume a cloud-based inference approach. In such systems, battery data are streamed to remote servers, where complex models can be executed. While this allows for high computational power, it also introduces several drawbacks, include increased latency, high bandwidth requirements, potential security risks, and the need for constant network connectivity. Such limitations make cloud-centric solutions impractical for real-time, in-vehicle applications.
+
+These limitations highlight the need for a deployable, efficient, and update-capable on-board ML solution.
+
+
+\section{Research Aims}
+
+This thesis aims to address the aforementioned challenges through edge-based machine learning, which enables the offloading of model inference tasks to the Battery Management System (BMS) controller. Once trained on high-performance servers, the model is deployed to the vehicle’s microcontroller for execution and updated periodically to account for battery degradation.
+
+To this end, this thesis proposes two key components:
+
+1) A machine learning model is developed and deployed on a microcontroller unit (MCU). The model is lightweight and efficient, enabling real-time inference on resource-constrained hardware without relying on cloud connectivity.
+
+2) An over-the-air (OTA) update system is designed to periodically refresh the deployed model. This mechanism ensures that the model remains accurate as the battery degrades over time, without requiring manual intervention or physical access to the device.
+
+Together, these components form a robust and adaptive solution for real-time SoC and SoH estimation under practical deployment constraints.
+
+
+\section{Contributions}
+
+\section{Thesis Outline}
+ In the following, the outline of each chapter is provided to guide the reader through this work.

@@ -1,0 +1,64 @@
+\chapter{Background}
+
+% Background and Literature review: you have to state from the start to talk about battery history and proress and then look at the literauter to see who solve the problems and the gaps they have and how your method overcome these problems
+
+
+
+\section{Background and Context}
+%Briefly introduce why you need to understand the relevant algorithms, technologies and platforms;
+%Explain the structure of these three sections and the connection between them.
+
+
+\section{Related Works in Battery State Estimation}
+
+\subsection{Model-based methods}
+
+\subsubsection*{Electrochemical models}
+
+\subsubsection*{Equivalent circuit models}
+
+Model-based estimation approaches rely on empirical or equivalent circuit models (ECMs), or electrochemical models, and formulate estimation algorithms around them.
+
+Among ECM-based techniques, various filter structures have been proposed in the literature. The extended Kalman filter (EKF) is one of the most widely used approaches, as it can handle nonlinearities of the system while maintaining real-time performance \autocite{ECM_EKF}. To improve robustness and accuracy estimation, researchers have developed dual and joint EKF schemes, which use separate filter branches to estimate states and parameters simultaneously \autocite{ECM_djEKF}. Other variants include the unscented Kalman filter \autocite{ECM_UKF}, adaptive EKF \autocite{ECM_aEKF}, and particle filter \autocite{ECM_PF}. These methods are designed to address higher levels of model uncertainty and measurement noise.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Various ECM-based filters for SOH estimation have been proposed in the literature, including Extended Kalman Filter \autocite{ECM_EKF},dual and joint Extended Kalman Filter7, Unscented Kalman Filter8, Adaptive Extended Kalman Filter9, Particle Filter10 and genetic algorithms11. Other methods for SOH estimation and RUL prediction, utilizing empirical degradation models, include Unscented Kalman Filters12 and
+ Particle Filters13. In a Bayesian Monte Carlo approach14, the parameters of an empirical capacity model are updated to compute the posterior probability density function for capacity fade prediction. Despite their simplicity, these methods lack explicit physical understanding and require significant calibration effort. Also, electrochemical battery models15–17 which demand increased computational power, have been employed, and adaptive observers based on the enhanced single particle model18,19 have been tested in a battery-in-the-loop setup.
+
+\subsection{Data-driven methods}
+
+\subsection{Joint SoC/SoH models}
+
+
+\section{Digital Twin for Model Updating}
+
+
+\section{Battery Management System Architecture}
+
+
+\subsection{Logical Architecture of the BMS System}
+
+
+% introduce all of the boards and master/slave architecture
+\subsection{Overview of the Multi-Board BMS System}
+% 简要说明系统由几个BMS板子组成，介绍功能分工和连接方式
+
+\subsection{Individual BMS Boards Description}
+% 逐一介绍每块板子的功能和硬件组成
+
+\subsection{Main BMS Board with SPC58EC Microcontroller}
+% 重点介绍此板子的MCU，硬件规格，运行环境，MCU功能
+
+% \section{Target Hardware Platform: SPC58EC Microcontroller}

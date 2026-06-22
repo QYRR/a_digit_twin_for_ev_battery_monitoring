@@ -1,0 +1,37 @@
+# Windows NTFS Zone.Identifier files (alternate data streams)
+*:Zone.Identifier
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.synctex.gz
+*.toc
+*.pdf
+*.dvi
+*.ps
+*.bcf
+*.run.xml
+
+# LaTeX temp files
+*.nav
+*.snm
+*.vrb
+*.glg
+*.glo
+*.gls
+*.ist
+*.acn
+*.acr
+*.alg
+*.xdy
+
+# OS files
+.DS_Store
+Thumbs.db

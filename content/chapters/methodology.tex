@@ -1,0 +1,207 @@
+\chapter{Methodology}
+
+
+% Methodology: How you did your solution (for example: the feature extraction, the segmentaiont, the  , the metrics)\\
+
+\section{Overview}
+
+This chapter presents an overview of the design, implementation, and validation of an edge-based Battery Management System (BMS). The objective of this research is to develop a decentralized and intelligent BMS architecture capable of real-time data processing and accurate state estimation.
+
+The methodological framework follows a data-driven modeling, training, and deployment paradigm, motivated by the growing demand for localized computation in next-generation BMSs. Traditional cloud-centered architectures often suffer from latency, bandwidth limits, and vulnerability to network interruptions. By integrating data processing, model training, and experimental deployment, this research aims to achieve a low-latency and updatable edge BMS.
+
+The general research process consists of five main stages.
+
+1. \textbf{Data Acquisition and Preprocessing}
+
+Battery operational data, including voltage, current, temperature, relative time, and state-of-charge (SOC) readings, are collected from experimental setups and public datasets. The raw data are preprocessed by noise filtering, normalization, segmentation, and feature extraction to ensure data quality for both modeling and embedded inference.
+
+2. \textbf{Modeling and Algorithm Development}
+
+This stage focuses on developing data-driven SOC estimation models. LightGBM decision trees are trained on historical data and optimized through systematic hyperparameter search. The models are evaluated on validation and test datasets to ensure accuracy and robustness under different load and temperature conditions.
+
+3. \textbf{Model Compilation and Deployment}
+
+The trained model is converted into C code using Efficient Decision tree Ensembles (Eden) \autocite{Eden} for embedded execution. Both the model and feature extraction logic are adapted for compatibility with the target hardware. The hardware development board and software environment are configured using SPC5Studio, which integrates the generated code and enables onboard preprocessing and real-time SOC inference.
+
+4. \textbf{Performance Verification}
+
+The deployed inference program is evaluated on the embedded board with representative datasets. The verification process includes functional validation and performance analysis. Memory usage and CPU cycle count are measured through custom scripts to evaluate computational efficiency and real-time capability.
+
+5. \textbf{Over-the-Air (OTA) Update Mechanism}
+
+An OTA mechanism is implemented to support remote model updates. This allows new or improved SOC estimation models to be securely deployed without manual intervention. The OTA system ensures long-term adaptability and maintains high performance in field operation.
+
+To better illustrate how the designed architecture operates as an integrated system, the operational logic of the deployed framework is presented in \autoref{fig:project_architecture}. This figure demonstrates the interaction between onboard estimation and cloud-based model management.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/ch3_project_architecture.png}
+    \caption{Architecture of the proposed SOC estimation system integrating onboard inference and cloud-based model management.}
+    \label{fig:project_architecture}
+\end{figure}
+
+(1) Battery data are collected by sensors and stored in the onboard memory.
+
+(2) Onboard SoH and SoC models perform real-time estimation.
+
+(3) Data are periodically uploaded to the cloud for analysis.
+
+(4) When retraining conditions are met, the cloud updates the SoC model using new data.
+
+(5) The updated model is transmitted back to the vehicle via OTA, ensuring continuous improvement of estimation accuracy.
+
+% 1. The EV continuously collects real-time battery data, including voltage, current, temperature, relative discharge time, and relative charge time. The data is temporarily stored in the onboard memory.
+
+% 2. The data collected are used as input for the SoH and SoC on-board estimation models. These models operate in real time to monitor battery status during operation.
+
+% 3. The stored data are periodically uploaded to the cloud for further processing. This upload is triggered when certain conditions are met, such as reaching a predefined time interval or when the onboard memory approaches its storage limit. 
+
+% 4. When additional retraining conditions are satisfied, such as a drop in SoH 1\% or the elapsed update period, the cloud retrains the SoC estimation model using the latest accumulated battery data.
+
+% 5. The updated SoC model is transmitted from the cloud back to the edge node of the EV. The edge node replaces the previous model with the new version, and the system resumes from Step 2 for continued operation.
+
+
+
+\section{Data Acquisition and Preprocessing}
+
+\subsection{Data Source}
+
+\begin{table}
+    \centering
+    \begin{adjustbox}{width={0.9\textwidth},totalheight={\textheight},keepaspectratio} % needed if the table overflows the margins, requires adjustbox package
+    \setcellgapes{3pt}
+    \makegapedcells
+    \begin{tabular}{c c c c}
+    \hline
+    Dataset Source & Battery Type & Sampling Rate & Variables\\
+    \hline
+    Batteries (NASA) \autocite{nasa_battery_2007} & / & 0.09 Hz & Voltage, Current, Temp, SOC \\
+    \makecell{Randomized Battery Usage \\ (NASA) \autocite{nasa_data_randomized}} & 18650 Li-ion & 0.33 Hz & Voltage, Current, Temp, SOC \\
+    \hline
+    \end{tabular}
+    \end{adjustbox} % must be closed before label and caption
+    \caption{Dataset source}
+    \label{tab:dataset_source}
+\end{table}
+
+The input of this workflow is the battery-related data, which typically includes charge and discharge logs with temperature ($T$), voltage ($V$), current ($I$) and timestamps ($t$). Data may be recorded at fixed or variable sampling rates. Figure~\ref{fig:ch3_inputdata_sample} shows a sample of the input data.
+
+Figure~\ref{fig:ch3_inputdata_sample} shows the structure of the input data. A single data file includes rows of data collected from different battery discharge cycles. A typical discharge cycle includes hundreds to thousands of rows. Data collected through sensors include voltage, current, temperature, and relative time. The label data are the capacity of the battery, which is the same for the data in the same discharge cycle.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{images/ch3_inputdata_sample.png}
+    \caption{The structure of the raw data}
+    \label{fig:ch3_inputdata_sample}
+\end{figure}
+
+
+\subsection{Multi-Length Segmentation}
+
+% 加一张图片，显示收集到的数据的结构
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/ch3_window_segementation.png}
+    \caption{Multi-Length Segmentation}
+    \label{fig:ch3_window_segementation}
+\end{figure}
+
+
+In this step, the input signals for each discharge cycle are divided into fixed-length sliding windows without overlap. We use window lengths $wlen \in \{20, 30, 40, 50, 60\}$, which are commonly used in the literature. Users can adjust the length or apply sliding windows with overlapping based on their needs or the sampling frequency of the data set.
+
+
+\subsection{Feature Extraction}
+
+
+The features are extracted from each sliding window to describe the battery behavior. Inspired by \autocite{feature_eng}, the following signals are computed based on the data collected:
+
+\begin{table}[]
+    \centering
+    \setcellgapes{3pt}
+    \makegapedcells
+    \begin{tabular}{c|c|c}
+      \hline
+      signals & symbols & how to compute \\
+      \hline
+      Voltage change rate & $\dot{V}$ & $\frac{dV}{dt}$ \\
+      Temperature change rate & $\dot{T}$ & $\frac{dT}{dt}$ \\
+      Power & P & $V \times I$ \\
+      Capacity (Integrated current) & Q &  $\int_{t_0}^{t} I(\tau)\, d\tau$ \\
+      Voltage derivative w.r.t. capacity & dV/dQ & $(\frac{dV}{dt})/(\frac{dQ}{dt})$ \\
+      \hline
+    \end{tabular}
+    \caption{feature extraction}
+    \label{tab:feature_extraction}
+\end{table}
+
+% 'mean_discharge_voltage_rate',  
+%     'mean_discharge_temperature_rate', 'mean_power', 
+%      'mean_dV_dQ', 'max_dV_dQ', 'min_dV_dQ', 
+% 'duration', 
+
+%     'mean_temperature' 'mean_voltage','mean_relativeTime',
+
+
+Derivatives of voltage (dV) and temperature (dT)
+
+Power (P = V × i)
+
+A relative timestamp (starting from 0 in each window)
+
+Capacity (Q)
+
+Discharge rates for voltage and temperature
+
+Voltage-capacity derivative (dV/dQ), which is useful for detecting electrochemical changes
+
+We then summarize these signals by averaging them over the window. For dV/dQ, we also include its minimum and maximum to capture its range. This gives a 10-dimensional feature vector, which includes:
+
+Final 10 features:
+1. Mean discharge voltage rate
+
+2. Mean voltage
+
+3. Mean discharge temperature rate
+
+4. Mean power
+
+5. Mean timestamp
+
+6. 7. 8. Mean, max, and min of dV/dQ
+
+9. Window duration
+
+10. Mean temperature
+
+
+\section{Modeling and Algorithm Development}
+
+\subsection{Model training and deployment}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{images/ch3_ml_workflow.png}
+    \caption{High-Level overview of model training and deployment}
+    \label{fig:ch3_ml_workflow}
+\end{figure}
+
+Figure~\ref{fig:ch3_ml_workflow} shows the training and deployment workflow proposed in our framework. It includes five main steps, which are multi-length segmentation, feature extraction, hyperparameter search, AI compiler pass, and deployment, respectively.
+
+
+\subsection{Hyperparameter Search}
+
+
+
+
+\section{Model Compilation and Deployment}
+
+\subsection{Deployment to Target Hardware}
+\subsection{Runtime Considerations and Integration}
+
+\section{Performance Verification}
+
+\section{Over-the-Air Update Mechanism}
+\subsection{Update Workflow}
+\subsection{Security and Version Control}
+\subsection{Fallback and Rollback Strategy}
