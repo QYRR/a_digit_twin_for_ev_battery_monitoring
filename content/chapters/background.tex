@@ -273,7 +273,7 @@ Battery digital twins can be organized along the computation-location axis into 
 
 Prior work on battery digital twins has focused mainly on modeling: hybrid ECM-plus-neural-network frameworks, degradation prediction algorithms, and multi-physics simulation. The questions of \emph{how} the edge model runs on a real MCU and \emph{how} it stays updated over the vehicle's lifetime have been largely set aside.
 
-This thesis works on both fronts. Chapters~\ref{methodology} and~\ref{experiment} validate the edge SoH model on production automotive hardware. Section~\ref{sec:ota_design} designs the OTA channel that maintains the SoC model over time. In the digital twin landscape, the thesis does not propose a new degradation algorithm; it demonstrates that a digital twin's edge layer can actually be built and deployed.
+This thesis works on both fronts. Chapters~\ref{methodology} and~\ref{experiment} validate the edge SoH model on production automotive hardware. Section~\ref{sec:ch3_ota} designs the OTA channel that maintains the SoC model over time. In the digital twin landscape, the thesis does not propose a new degradation algorithm; it demonstrates that a digital twin's edge layer can actually be built and deployed.
 
 
 \section{Over-the-Air Update Mechanisms}
@@ -300,7 +300,7 @@ In short, ML model OTA is lower risk and lower complexity than the firmware OTA 
 
 \subsection{Role in This Thesis}
 
-In the digital twin architecture of this thesis, OTA is the channel that closes the loop: it delivers updated SoC models from the cloud to the edge when the SoH estimate indicates that the battery has entered a new aging regime. The OTA mechanism itself is designed but not implemented in hardware; the design is detailed in Section~\ref{sec:ota_design}. The core argument of the thesis, however, does not depend on OTA. The SoH model, trained on multiple window lengths, is inherently robust to varying input conditions and does not require frequent updates to maintain its accuracy. OTA exists as a long-term safeguard --- if, after years of operation, the battery degrades beyond the range covered by the training data, there is a channel to refresh the model. But the immediate, experimentally verified result is that a single, well-trained LightGBM model handles a wide range of conditions without any update at all.
+In the digital twin architecture of this thesis, OTA is the channel that closes the loop: it delivers updated SoC models from the cloud to the edge when the SoH estimate indicates that the battery has entered a new aging regime. The OTA mechanism itself is designed but not implemented in hardware; the design is detailed in Section~\ref{sec:ch3_ota}. The core argument of the thesis, however, does not depend on OTA. The SoH model, trained on multiple window lengths, is inherently robust to varying input conditions and does not require frequent updates to maintain its accuracy. OTA exists as a long-term safeguard --- if, after years of operation, the battery degrades beyond the range covered by the training data, there is a channel to refresh the model. But the immediate, experimentally verified result is that a single, well-trained LightGBM model handles a wide range of conditions without any update at all.
 
 
 \section{Chapter Summary}
