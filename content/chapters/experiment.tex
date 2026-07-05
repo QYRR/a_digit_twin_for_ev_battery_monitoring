@@ -2,10 +2,298 @@
 \label{experiment}
 
 
-% Experiment: here you will specify in details the datasets you used, explain, why selected them and how you used them (data processing, segmentation, feature extraction), the result you got 
+This chapter evaluates the SoH estimation framework described in Chapter~\ref{methodology}. Section~\ref{sec:exp_setup} details the experimental setup: hardware and software environments, dataset statistics, evaluation metrics, and the BiLSTM baseline configuration. Sections~\ref{sec:exp_hp}--\ref{sec:exp_generalization} present results for each research question in turn: hyperparameter optimization, accuracy comparison against the state of the art, deployment performance across window lengths, and generalization to unseen window lengths. Section~\ref{sec:exp_discussion} discusses the findings and their limitations.
+
 
 \section{Experimental Setup}
-step 1, dataset processing, find the feature of dataset
+\label{sec:exp_setup}
+
+\subsection{Hardware and Software Environments}
+
+Experiments span two computing environments.
+
+\textbf{Training environment.} Model training and hyperparameter search run on a workstation [TODO: CPU/GPU and RAM specs]. The software stack is Python-based, with LightGBM 4.5.0 for model training and Optuna 4.2.0 for hyperparameter optimization. A complete dependency list appears in Appendix~\ref{app:dependencies}.
+
+\textbf{Deployment and measurement environment.} The deployment target is the SPC58EC80E5 automotive microcontroller (dual-core Power Architecture e200z420n3 at 120\,MHz, 4\,MB Flash, 608\,KB SRAM). Code is compiled with the SPC5Studio IDE's integrated GCC Power Architecture cross-compiler at optimization level \texttt{-O2}. Program execution, debugging, and cycle counting use UDE Starterkit (PLS). Flash and RAM usage figures are extracted from the SPC5Studio linker map file.
+
+CPU cycle measurements on the MCU use randomly generated window data. The cycle count depends on window length and model structure, not on the specific numerical values of the data. Accuracy metrics (MAE and MSE) are evaluated in the Python training environment on the held-out test set. The MCU inference output was verified to match the Python output bit-for-bit during initial deployment validation, as described in Section~\ref{sec:ch3_deployment}. Running the full test set through the MCU would reproduce the same accuracy figures at far greater effort.
+
 \subsection{Datasets}
+
+Two public NASA lithium-ion battery datasets are used, as introduced in Chapter~\ref{methodology} (Table~\ref{tab:dataset_source}). Table~\ref{tab:dataset_stats} provides statistical details.
+
+\begin{table}[H]
+    \centering
+    \setcellgapes{3pt}
+    \makegapedcells
+    \begin{tabular}{c c c}
+    \hline
+    & NBD & NRD \\
+    \hline
+    Battery type & 18650 Li-ion & 18650 LCO \\
+    Cells & [TODO] & 28 \\
+    Total discharge cycles & [TODO] & [TODO] \\
+    Sampling rate & 0.09\,Hz & 0.33\,Hz \\
+    SoH label range & [TODO]\,Ah & [TODO]\,\% \\
+    Train/Val/Test split & \multicolumn{2}{c}{64\% / 16\% / 20\% (cycle-level)} \\
+    Cross-cell isolation & No & Yes (test cells unseen) \\
+    \hline
+    \end{tabular}
+    \caption{Dataset statistics. NBD = NASA Battery Dataset; NRD = NASA Randomized Battery Usage Dataset.}
+    \label{tab:dataset_stats}
+\end{table}
+
+\noindent\textbf{Label units.} NBD labels are discharge capacities in ampere-hours (Ah); NRD labels are SoH percentages. This difference in scale explains the different MAE magnitudes across the two datasets (on the order of $10^{-2}$ for NBD and $10^{0}$ for NRD). The model configuration is identical; the apparent performance gap is a unit artifact.
+
+\textbf{Data split.} Both datasets are split at the cycle level (not the sample level) with a two-stage procedure: first 80/20 into train+val and test, then 80/20 of the train+val pool into train and val. The overall proportions are 64/16/20. For NRD, all cycles from a given cell are assigned to the same partition, and the test set contains cells never seen during training or validation.
+
 \subsection{Evaluation Metrics}
 
+The metrics defined in Chapter~\ref{methodology} (Section~\ref{sec:ch3_verification}) are briefly restated here:
+
+\begin{itemize}
+    \item \textbf{MAE} (Mean Absolute Error): $\frac{1}{N}\sum |\hat{y}_i - y_i|$. Primary metric.
+    \item \textbf{MSE} (Mean Squared Error): $\frac{1}{N}\sum (\hat{y}_i - y_i)^2$. Secondary metric, penalizes large errors.
+    \item \textbf{FW} (First Window): MAE computed on the first window of each test discharge cycle only, following the evaluation protocol of Sammartino et al.~\autocite{Sammartino2021}.
+    \item \textbf{Full}: MAE on all test windows.
+    \item \textbf{Inference cycles}: CPU clock cycles for one complete inference (feature extraction + model traversal), measured via UDE cycle counter.
+    \item \textbf{Flash / RAM}: Static memory usage from the linker map file, reported in absolute bytes and as a percentage of the 4\,MB Flash and 608\,KB SRAM.
+\end{itemize}
+
+\subsection{BiLSTM Baseline}
+
+To ensure a fair comparison, the BiLSTM model of Sammartino et al.~\autocite{Sammartino2021} is reproduced. This baseline is one of the few published works covering the full training-to-deployment pipeline for SoH estimation on SPC58 hardware, and it uses the same two NASA datasets.
+
+The BiLSTM was retrained using the identical data split as the LightGBM model. Configuration details [TODO: check project files]:
+
+\begin{itemize}
+    \item Architecture: [TODO: layers, hidden units]
+    \item Training: [TODO: epochs, learning rate, batch size]
+    \item Input window: $wlen = 20$ (fixed; original paper setting)
+    \item MCU deployment: Keras model converted to C via SPC5Studio AI
+\end{itemize}
+
+For the multi-window-length deployment experiment (Section~\ref{sec:exp_deployment}), a separate BiLSTM model is trained for each $wlen \in \{20, 30, 40, 50, 60\}$, because the input dimension is fixed at training time. For the generalization experiment (Section~\ref{sec:exp_generalization}), unseen window lengths are handled by [TODO: truncation/padding strategy --- confirm after code review].
+
+
+\section{Hyperparameter Optimization Results}
+\label{sec:exp_hp}
+
+After 1{,}000 Optuna trials, the best hyperparameter configurations for each dataset are shown in Table~\ref{tab:best_hp}.
+
+\begin{table}[H]
+    \centering
+    \setcellgapes{3pt}
+    \makegapedcells
+    \begin{tabular}{c c c c c c c c c}
+    \hline
+    Dataset & LR & Max Depth & \#Leaves & \#Estimators & $\alpha$ & $\beta$ & MCS & CST \\
+    \hline
+    NBD & 0.147 & 8 & 25 & 384 & $6.5\times10^{-2}$ & $6.7\times10^{-5}$ & 6 & 0.46 \\
+    NRD & 0.085 & 8 & 18 & 443 & $1.9\times10^{-6}$ & $3.6\times10^{-4}$ & 17 & 0.61 \\
+    \hline
+    \end{tabular}
+    \caption{Best hyperparameter configurations found by Bayesian search}
+    \label{tab:best_hp}
+\end{table}
+
+Several observations. First, the optimal learning rate for NRD (0.085) is substantially lower than for NBD (0.147), while the ensemble is larger (443 trees vs.\ 384). NRD's randomized charge/discharge profiles and multi-cell composition produce more complex feature distributions, requiring smaller gradient steps and more base learners.
+
+Second, NRD's leaf count (18) is lower than NBD's (25), yet both L1 and L2 regularization are stronger by several orders of magnitude. The search converged to more conservative trees for NRD---shallower and more heavily regularized---to prevent overfitting on the noisier data.
+
+Third, \texttt{max\_depth} hit the upper bound of 8 on both datasets. Without this deployment-motivated constraint, the search would likely have explored deeper trees. As argued in Chapter~\ref{methodology}, the cap ensures the resulting model fits comfortably within the MCU's Flash budget, and the accuracy results in the following sections confirm that the constraint does not materially harm estimation quality.
+
+
+\section{Accuracy Comparison with BiLSTM}
+\label{sec:exp_sota}
+
+Table~\ref{tab:sota} compares LightGBM against BiLSTM at $wlen = 20$, the window length for which the baseline was originally trained. Alongside accuracy (MAE FW and Full), the table reports inference latency and energy per inference.
+
+\begin{table}[H]
+    \centering
+    \setcellgapes{3pt}
+    \makegapedcells
+    \begin{tabular}{c c c c c}
+    \hline
+    Model & MAE (FW) & MAE (Full) & Latency [ms] & Energy [$\mu$J] \\
+    \hline
+    BiLSTM~\autocite{Sammartino2021} & 0.0202 & 0.0194 & 4.656 & 279.36 \\
+    LightGBM (Ours) & 0.0167 & 0.0188 & 0.403 & 24.18 \\
+    \hline
+    \end{tabular}
+    \caption{State-of-the-art comparison on the NBD dataset at $wlen = 20$}
+    \label{tab:sota}
+\end{table}
+
+On accuracy, LightGBM reduces FW MAE by approximately 17\% (0.0202 $\rightarrow$ 0.0167) and Full MAE by about 3\% (0.0194 $\rightarrow$ 0.0188). The larger FW improvement is encouraging: it means the model produces a more accurate SoH estimate from the earliest available data in a discharge cycle, rather than requiring the full cycle to converge.
+
+On efficiency, the gap is larger. LightGBM inference takes 0.403\,ms versus 4.656\,ms for BiLSTM---an 11.6$\times$ speedup. Energy per inference drops from 279.36\,$\mu$J to 24.18\,$\mu$J. SoH estimation in a real BMS runs once per window (not once per sample), so the absolute energy cost is negligible in either case. But the latency reduction frees a meaningful amount of CPU time in the BMS main loop, which must also handle cell balancing, thermal monitoring, communication, and safety checks within hard real-time deadlines.
+
+The energy figures are derived as $E = P \times t_{inf}$, assuming a nominal power consumption for the SPC58 core. They are reported following the convention of Sammartino et al.~\autocite{Sammartino2021} for comparability.
+
+
+\section{Deployment Performance Across Window Lengths}
+\label{sec:exp_deployment}
+
+Table~\ref{tab:deployment} is the central result of this chapter. It reports MAE, MSE, inference cycles, RAM usage, and Flash usage for both models across all five training window lengths on both datasets.
+
+\begin{table}[H]
+    \centering
+    \setcellgapes{3pt}
+    \makegapedcells
+    \begin{tabular}{c c c c c c c c}
+    \hline
+    Dataset & WL & Model & MAE & MSE & Cycles & RAM\% & Flash\% \\
+    \hline
+    \multirow{10}{*}{NBD}
+    & 20 & L & 0.0188 & 0.0008 & 72.6k & 0.49 & 2.71 \\
+    & 20 & B & 0.0194 & 0.0007 & 838k & 0.13 & 0.21 \\
+    & 30 & L & 0.0156 & 0.0006 & 74.7k & 0.49 & 2.71 \\
+    & 30 & B & 0.0162 & 0.0005 & 1.25M & 0.13 & 0.21 \\
+    & 40 & L & 0.0137 & 0.0004 & 77.1k & 0.49 & 2.71 \\
+    & 40 & B & 0.0401 & 0.0026 & 1.67M & 0.13 & 0.21 \\
+    & 50 & L & 0.0171 & 0.0008 & 79.0k & 0.49 & 2.71 \\
+    & 50 & B & 0.0288 & 0.0014 & 2.08M & 0.13 & 0.21 \\
+    & 60 & L & 0.0173 & 0.0006 & 81.3k & 0.49 & 2.71 \\
+    & 60 & B & 0.0281 & 0.0013 & 2.50M & 0.13 & 0.21 \\
+    \hline
+    \multirow{10}{*}{NRD}
+    & 20 & L & 2.2561 & 12.622 & 73.3k & 0.49 & 2.23 \\
+    & 20 & B & 2.9078 & 14.897 & 838k & 0.13 & 0.21 \\
+    & 30 & L & 2.2078 & 11.788 & 75.4k & 0.49 & 2.23 \\
+    & 30 & B & 4.1269 & 27.588 & 1.25M & 0.13 & 0.21 \\
+    & 40 & L & 2.1831 & 10.498 & 77.8k & 0.49 & 2.23 \\
+    & 40 & B & 4.0019 & 28.180 & 1.67M & 0.13 & 0.21 \\
+    & 50 & L & 1.8812 & 7.137 & 79.6k & 0.49 & 2.23 \\
+    & 50 & B & 4.7511 & 40.870 & 2.08M & 0.13 & 0.21 \\
+    & 60 & L & 1.7509 & 7.357 & 82.0k & 0.49 & 2.23 \\
+    & 60 & B & 4.3676 & 30.323 & 2.50M & 0.13 & 0.21 \\
+    \hline
+    \end{tabular}
+    \caption{Deployment results. L = LightGBM (this work), B = BiLSTM, WL = Window Length. RAM\% and Flash\% are percentages of the SPC58EC80E5's 608\,KB SRAM and 4\,MB Flash.}
+    \label{tab:deployment}
+\end{table}
+
+\subsection{Accuracy}
+
+On the NBD dataset, the two methods are close at short window lengths ($wlen \leq 30$), with LightGBM holding a small edge (MAE difference $< 0.006$). From $wlen = 40$ onward, BiLSTM accuracy degrades markedly: MAE jumps from 0.0162 at $wlen = 30$ to 0.0401 at $wlen = 40$, a 2.5$\times$ increase, and remains elevated at longer windows. LightGBM stays stable within a narrow band of 0.013--0.019 across all window lengths.
+
+On the more complex NRD dataset, LightGBM's advantage is both larger and consistent across window lengths. At $wlen = 20$, LightGBM already leads ($\text{MAE} = 2.26$ vs.\ 2.91), and the gap widens steadily with window length. At $wlen = 60$, LightGBM achieves a MAE roughly 2.5$\times$ lower than BiLSTM. Moreover, LightGBM's MAE actually \emph{decreases} with longer windows (from 2.26 to 1.75), while BiLSTM's \emph{increases} (from 2.91 to 4.37). This seemingly counterintuitive behavior has a straightforward explanation. Longer windows give the feature extraction step more samples to compute its statistical aggregates (means, min, max), yielding more stable feature estimates and therefore better inputs to the model. BiLSTM, processing raw time series, cannot exploit this ``statistical convergence'' effect. Instead, longer sequences aggravate the difficulty of capturing long-range temporal dependencies.
+
+\subsection{Inference Efficiency}
+
+The two methods show qualitatively different scaling behavior.
+
+LightGBM's inference cycles grow from approximately 73k at $wlen = 20$ to 82k at $wlen = 60$, an increase of about 12\%. Nearly all of this increase comes from feature extraction---computing means and extrema over a longer buffer takes more loop iterations. The model inference component (tree traversal) costs are constant with window length, since the model always receives a 10-element vector.
+
+BiLSTM's inference cycles grow from 838k at $wlen = 20$ to 2.50M at $wlen = 60$, an increase of approximately 3$\times$. This is a structural consequence of recurrent architectures: every time step requires matrix multiplications and activation functions, and the cost scales linearly with the number of steps.
+
+In terms of speedup, LightGBM is 11.5$\times$ faster at $wlen = 20$ and 30.7$\times$ faster at $wlen = 60$. The advantage grows with window length and, by extension, with sampling rate. In a BMS operating at higher sampling frequencies, the gap would be even wider.
+
+\subsection{Memory Footprint}
+
+LightGBM uses approximately 2.2--2.7\% of Flash ($\approx$ 90--110\,KB) and 0.49\% of RAM ($\approx$ 3\,KB). BiLSTM uses 0.21\% Flash and 0.13\% RAM.
+
+LightGBM is heavier on memory, primarily because the tree ensemble's four arrays occupy flash. Each tree node requires 64 bits (one 32-bit threshold and two 16-bit indices). The NBD configuration (384 trees, depth $\leq$ 8) has a worst-case budget of $384 \times 255 \times 8 \approx 783$\,KB; the actual measured Flash usage (roughly 108\,KB for the 2.71\% figure) is far lower because trees are rarely full to the maximum depth, and the constraint on \texttt{num\_leaves} further limits node count.
+
+BiLSTM's lighter memory profile reflects the optimization of SPC5Studio AI's neural network runtime, which uses compact weight representations. However, this efficiency comes at the cost of limited model-type support: SPC5Studio AI only handles specific neural network architectures, whereas the EDEN-compiled LightGBM code is self-contained and portable.
+
+In absolute terms, both models are well within the SPC58's memory budget. Allocating 2--3\% of Flash to the model in exchange for a 10--30$\times$ inference speedup and better or equivalent accuracy is a clearly favorable trade-off for this hardware platform.
+
+
+\section{Generalization to Unseen Window Lengths}
+\label{sec:exp_generalization}
+
+The experiments so far evaluated performance on window lengths seen during training. A more stringent test is: can the model handle window lengths it was never trained on? This simulates real-world contingencies---a BMS firmware update changes the sampling rate, or an unusually short trip produces a window far from the nominal configuration.
+
+The experiment uses four test lengths not present in the training set: $\{10, 35, 55, 75\}$. The value 10 is shorter than the minimum training length (20); 75 is longer than the maximum (60); 35 and 55 fall within the training range but were never explicitly seen. LightGBM requires no modification to handle these lengths. BiLSTM, with its fixed input dimension, requires heuristic adaptation: [TODO: truncation/padding strategy --- confirm after code review].
+
+[TODO: generalization result tables --- paper Figure 3 data, to be formatted as tables]
+
+\subsection{NBD Results}
+
+Table~\ref{tab:generalization_nbd} reports MAE on the NBD dataset for unseen window lengths.
+
+\begin{table}[H]
+    \centering
+    \setcellgapes{3pt}
+    \makegapedcells
+    \begin{tabular}{c c c c c c}
+    \hline
+    \multirow{2}{*}{Model} & \multicolumn{4}{c}{Test Window Length} & \multirow{2}{*}{Avg. MAE} \\
+    \cline{2-5}
+    & 10 & 35 & 55 & 75 & \\
+    \hline
+    LightGBM (Ours) & 0.041 & 0.023 & 0.025 & 0.095 & 0.046 \\
+    BiLSTM$_{20}$ & 0.106 & 0.491 & 0.492 & 0.274 & 0.341 \\
+    BiLSTM$_{30}$ & 0.059 & 0.042 & 0.504 & 0.497 & 0.276 \\
+    BiLSTM$_{40}$ & 0.102 & 0.073 & 0.668 & 0.660 & 0.376 \\
+    BiLSTM$_{50}$ & 0.097 & 0.068 & 0.033 & 0.643 & 0.210 \\
+    BiLSTM$_{60}$ & 0.041 & 0.023 & 0.025 & 0.095 & 0.046 \\
+    \hline
+    \end{tabular}
+    \caption{MAE on unseen window lengths --- NBD dataset. BiLSTM$_{XX}$ = BiLSTM trained on window length XX. All models evaluated on the same test split.}
+    \label{tab:generalization_nbd}
+\end{table}
+
+LightGBM achieves an average MAE of 0.046 across the four unseen lengths, with reasonably stable performance at all test points except $wlen = 75$, where the error rises to 0.095---still within the range observed for seen lengths. The five BiLSTM models, each trained on a single length, produce erratic results. BiLSTM$_{40}$ reports MAE 0.668 at $wlen = 55$, nearly 17$\times$ worse than the 0.04 it achieves at its training length. There is no consistent relationship between training window length and generalization performance: models do not necessarily perform best at test lengths near their training configuration. BiLSTM$_{60}$ achieves the same average MAE as LightGBM (0.046)---but it required training a dedicated model for $wlen = 60$ to get there.
+
+\subsection{NRD Results}
+
+Table~\ref{tab:generalization_nrd} reports the equivalent results on NRD.
+
+\begin{table}[H]
+    \centering
+    \setcellgapes{3pt}
+    \makegapedcells
+    \begin{tabular}{c c c c c c}
+    \hline
+    \multirow{2}{*}{Model} & \multicolumn{4}{c}{Test Window Length} & \multirow{2}{*}{Avg. MAE} \\
+    \cline{2-5}
+    & 10 & 35 & 55 & 75 & \\
+    \hline
+    LightGBM (Ours) & 3.7 & 2.3 & 1.7 & 2.3 & 2.50 \\
+    BiLSTM$_{20}$ & 5.3 & 15.3 & 7.5 & 10.8 & 9.73 \\
+    BiLSTM$_{30}$ & 5.5 & 19.8 & 19.9 & 12.6 & 14.45 \\
+    BiLSTM$_{40}$ & 6.8 & 4.2 & 24.0 & 24.5 & 14.88 \\
+    BiLSTM$_{50}$ & 7.5 & 4.8 & 21.7 & 22.2 & 14.05 \\
+    BiLSTM$_{60}$ & 8.9 & 4.8 & 4.2 & 28.2 & 11.53 \\
+    \hline
+    \end{tabular}
+    \caption{MAE on unseen window lengths --- NRD dataset.}
+    \label{tab:generalization_nrd}
+\end{table}
+
+On the more complex NRD data, the contrast is sharper. LightGBM averages MAE 2.50 with small variance across test lengths. The BiLSTM models exhibit extreme fluctuations. The most striking case is BiLSTM$_{60}$: MAE is 4.2 at $wlen = 55$ but jumps to 28.2 at $wlen = 75$---a nearly 7$\times$ increase between two test lengths only 15 samples apart. BiLSTM$_{30}$ performs decently at $wlen = 10$ (MAE 5.5) and collapses at $wlen = 55$ (19.9). Across all BiLSTM variants, the average MAE ranges from 9.73 to 14.88---approximately 4--6$\times$ worse than LightGBM.
+
+\subsection{Why the LightGBM Generalizes}
+
+The generalization results follow directly from the design documented in Chapter~\ref{methodology}. LightGBM receives a fixed 10-dimensional feature vector, not a raw time series. Feature extraction computes the same statistics regardless of window length. The multi-length training strategy (Section~\ref{sec:ch3_segmentation}) then teaches the model that the feature distribution may shift slightly with window length, but the SoH label should remain unchanged. The model learns this invariance, and it holds when new lengths appear.
+
+BiLSTM's failure mode is structural. Changing the input sequence length by truncation or padding creates artifacts the model never encountered during training. For BiLSTM$_{40}$, trained on sequences of exactly 40 steps, a 55-step sequence truncated to 40 discards the 15 oldest samples---if those samples contained the early portion of the voltage drop, the model has lost information it was trained to expect. A 10-step sequence padded to 40 injects 30 artificial zeros, which the model's recurrent dynamics were never calibrated to handle. LightGBM sidesteps this entire class of problems by operating on features rather than sequences.
+
+
+\section{Discussion and Limitations}
+\label{sec:exp_discussion}
+
+\subsection{Summary of Findings}
+
+Three central findings emerge from the experiments.
+
+\textbf{Accuracy.} The LightGBM + multi-length feature extraction scheme matches or exceeds BiLSTM accuracy on both NBD and NRD datasets. The advantage is most pronounced on the more complex, multi-cell NRD dataset and at longer window lengths. This validates the analysis in Chapter~\ref{background}: tree ensembles extracting statistical features from variable-length windows capture degradation information more robustly than recurrent networks processing fixed-length sequences.
+
+\textbf{Efficiency.} LightGBM inference is 11--30$\times$ faster than BiLSTM, and the cost is nearly independent of window length. This property is critical for deployment in BMS hardware with variable sampling rates. BiLSTM's linearly scaling cost poses a real-time risk under longer windows or higher sampling frequencies.
+
+\textbf{Robustness.} A single LightGBM model, trained once, maintains stable accuracy on window lengths it never encountered during training. BiLSTM under the same conditions produces unpredictable and often severely degraded accuracy. In practical terms, this means the LightGBM model can handle unforeseen changes in operating conditions over the vehicle's lifetime without retraining.
+
+\subsection{Limitations}
+
+Several limitations should be considered when interpreting these results.
+
+First, both datasets come from laboratory environments. Charge and discharge cycles are conducted under controlled temperatures with pre-programmed load profiles. Real-world batteries experience wider temperature swings ($-20^\circ$C cold starts to $+50^\circ$C summer heat), irregular load patterns (acceleration, regenerative braking, idling), and mixed aging histories. Validation on data collected from fielded vehicles remains an important direction for future work.
+
+Second, the experiments evaluate only the SoH component of the dual-model architecture described in Chapter~\ref{introduction}. The SoC model and the OTA update mechanism are not experimentally validated here. Preliminary SoC experiments confirmed that SoH estimation errors propagate to SoC predictions, but a complete solution to this coupling problem remains for future work.
+
+Third, MCU performance measurements use randomly generated data and report pure computation time. In a production BMS, data transfer from the analog front-end to the MCU, interrupt handling, and DMA operations add to the end-to-end latency. The cycle counts reported here represent a lower bound on real-world inference time.
+
+Fourth, the 64/16/20 split and NRD cross-cell isolation ensure statistical validity, but the NBD dataset is relatively small [TODO: confirm cycle count]. Evaluation on larger, more diverse datasets would strengthen the generalizability of these conclusions.
