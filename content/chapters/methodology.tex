@@ -66,11 +66,11 @@ Each dataset consists of charge/discharge experiment logs. Each file contains ro
 
 \subsection{Preprocessing}
 
-Preprocessing consists of two steps. First, the raw data are grouped by discharge cycle, so that each cycle forms an independent unit. Second, an optional MinMax scaling step maps the continuous variables ($V$, $I$, $T$, $t$) to $[0, 1]$. For tree-based models like LightGBM, scaling is not strictly required --- splits depend only on feature ordering, not on absolute magnitudes. It is applied here to keep experimental conditions uniform across models (the BiLSTM baseline benefits from normalized inputs). No filtering or outlier removal was performed; the NASA datasets are used exactly as distributed by NASA.
+Preprocessing consists of two steps. First, the raw data are grouped by discharge cycle, so that each cycle forms an independent unit. Second, an optional MinMax scaling step maps the continuous variables ($V$, $I$, $T$, $t$) to $[0, 1]$. For tree-based models like LightGBM, scaling is not strictly required --- splits depend only on feature ordering, not on absolute magnitudes. It is applied here to keep experimental conditions uniform across models (the BiLSTM baseline benefits from normalized inputs). For the NBD dataset, the same 19-cell selection used by the BiLSTM baseline is applied, so that both models are trained and tested on identical cells. No filtering or outlier removal was performed.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.5\linewidth]{images/ch3_inputdata_sample.png}
+    \includegraphics[width=1\linewidth]{images/ch3_inputdata_sample.png}
     \caption{Structure of the raw input data: rows correspond to sampling instants within discharge cycles; all rows in a discharge cycle share the same SoH label.}
     \label{fig:ch3_inputdata_sample}
 \end{figure}
@@ -178,7 +178,7 @@ The key property of this feature vector is that its size is independent of the o
 
 \subsection{MCU Implementation}
 
-The same feature extraction logic is implemented twice: in Python (NumPy/Pandas) for offline training, and in hand-written C for on-board execution. The C implementation receives a raw data buffer ($V$, $I$, $T$, $t$ arrays of length $wlen$), computes the five intermediate signals sample by sample, then reduces them to the ten statistical features. All arithmetic uses single-precision floating point. The SPC58EC80E5 includes a hardware FPU, so these operations execute at native speed with no software emulation overhead. The full C source is reproduced in Appendix~\ref{app:feature_extraction}.
+The same feature extraction logic is implemented twice: in Python (NumPy/Pandas) for offline training, and in hand-written C for on-board execution. The C implementation receives a raw data buffer ($V$, $I$, $T$, $t$ arrays of length $wlen$), computes the five intermediate signals sample by sample, then aggregates them into the ten statistical features (the means and extrema listed in Table~\ref{tab:intermediate_signals}). All arithmetic uses single-precision floating point. The SPC58EC80E5 includes a hardware FPU, so these operations execute at native speed with no software emulation overhead. The full C source is reproduced in Appendix~\ref{app:feature_extraction}.
 
 
 \section{Model Training and Hyperparameter Search}
@@ -194,16 +194,6 @@ LightGBM exposes several hyperparameters that govern model capacity, regularizat
 
 Table~\ref{tab:hp_space} lists the search space. Two parameters are constrained by deployment requirements: \texttt{max\_depth} is capped at 8 and \texttt{num\_leaves} at 25. These caps prevent the search from producing models too large to fit in the MCU's Flash. A tree ensemble's Flash footprint scales as $O(N_{trees} \times 2^{depth})$. At depth 8, a single fully-grown tree contains at most $2^8 - 1 = 255$ nodes; with 400 trees, even the worst-case total (approximately 100{,}000 nodes, or 600\,KB) fits comfortably within the SPC58's 4\,MB Flash.
 
-
-\subsection{Training Procedure}
-
-Features extracted from all five window lengths are pooled into a single training set. Each sample is a 10-dimensional feature vector with its SoH label. Validation uses the same mixed-length scheme: the model is evaluated on validation samples drawn from all window lengths, ensuring the selected hyperparameters perform well across the board.
-
-The best trial (lowest validation MAE) yields the final model. The hyperparameter values and the corresponding accuracy figures are reported in Chapter~\ref{experiment}. The training infrastructure is built on LightGBM 4.5.0; a complete list of Python dependencies and their versions appears in Appendix~\ref{app:dependencies}.
-
-% GitHub repository footnote
-The code for data preprocessing, feature extraction, model training, and evaluation is available at \url{https://github.com/QYRR/batteryML}.
-
 \begin{table}[H]
     \centering
     \setcellgapes{3pt}
@@ -212,7 +202,7 @@ The code for data preprocessing, feature extraction, model training, and evaluat
     \hline
     Parameter & Search Range \\
     \hline
-    Learning Rate & $[10^{-5}, 10^{-1}]$ \\
+    Learning Rate & $[10^{-5}, 0.7]$ \\
     Max Depth & $[3, 8]$ \\
     Num Leaves & $[2, 25]$ \\
     Num Estimators & $[50, 450]$ \\
@@ -225,6 +215,17 @@ The code for data preprocessing, feature extraction, model training, and evaluat
     \caption{Hyperparameter search space}
     \label{tab:hp_space}
 \end{table}
+
+\subsection{Training Procedure}
+
+Features extracted from all five window lengths are pooled into a single training set. Each sample is a 10-dimensional feature vector with its SoH label. Validation uses the same mixed-length scheme: the model is evaluated on validation samples drawn from all window lengths, ensuring the selected hyperparameters perform well across the board.
+
+The best trial (lowest validation MAE) yields the final model. The hyperparameter values and the corresponding accuracy figures are reported in Chapter~\ref{experiment}. The training infrastructure is built on LightGBM 4.5.0; a complete list of Python dependencies and their versions appears in Appendix~\ref{app:dependencies}.
+
+% GitHub repository footnote
+The code for data preprocessing, feature extraction, model training, and evaluation is available at \url{https://github.com/QYRR/batteryML}.
+
+
 
 \subsection{Contrast with Deep Learning}
 
@@ -281,7 +282,7 @@ No function calls, no recursion, no dynamic allocation. On the SPC58, the outer 
 
 \subsection{Model Size}
 
-The four arrays are declared \texttt{const} and placed in Flash. The exact Flash footprint depends on the number of trees and their actual depth (trees rarely grow to the maximum allowed depth). For the configurations used in this work, the compiled model occupies 119.5\,KB (NBD) and 126.05\,KB (NRD) of the SPC58's 4\,MB Flash (under 3\%, as reported in Chapter~\ref{experiment}). The generated code consists of one \texttt{.c} file (array definitions and the inference function) and one \texttt{.h} file (function declaration). Both are added directly to the SPC5Studio project.
+The four arrays are declared \texttt{const} and placed in Flash. The exact Flash footprint depends on the number of trees and their actual depth (trees rarely grow to the maximum allowed depth). For the configurations used in this work, the compiled model occupies 111\,KB (NBD) and 91.34\,KB (NRD) of the SPC58's 4\,MB Flash (under 3\%, as reported in Chapter~\ref{experiment}). The generated code consists of one \texttt{.c} file (array definitions and the inference function) and one \texttt{.h} file (function declaration). Both are added directly to the SPC5Studio project.
 
 
 \section{MCU Deployment}
@@ -293,7 +294,7 @@ The deployment target is the SPC58EC80E5, an automotive-grade microcontroller by
 
 \subsection{Toolchain}
 
-Two software tools are used. \textbf{SPC5Studio IDE} provides the GCC Power Architecture cross-compiler, the SPC5 Hardware Abstraction Layer (HAL), and the Flash programming utility. Compilation uses \texttt{-O2} optimization. \textbf{UDE Starterkit} (Universal Debug Engine, PLS) provides run-control debugging: breakpoints, single-stepping, memory inspection, and variable monitoring.
+Two software tools are used. \textbf{SPC5Studio IDE} provides the GCC Power Architecture cross-compiler, the SPC5 Hardware Abstraction Layer (HAL), and the Flash programming utility. Compilation uses \texttt{-O2} optimization. \textbf{UDE Starterkit} (Universal Debug Engine, PLS) provides run-control debugging: breakpoints, single-stepping, and variable monitoring.
 
 \subsection{Firmware Integration}
 
@@ -346,11 +347,11 @@ Accuracy is reported for two subsets of the test data:
 
 \subsection{Inference Efficiency}
 
-The CPU cycle count for one complete inference (feature extraction plus model traversal) is measured. The corresponding wall-clock latency is $t_{inf} = cycles / 180\,\text{MHz}$. The BiLSTM baseline is measured under identical conditions.
+The CPU cycle count for one complete inference (feature extraction plus model traversal) is measured. The corresponding wall-clock latency is $t_{inf} = cycles_{CPU} / 180\,\text{MHz}$. The BiLSTM baseline is measured under identical conditions.
 
 \subsection{Memory Footprint}
 
-Flash usage (model arrays, firmware code, HAL, feature extraction) and RAM usage (feature buffers, stack, HAL globals) are derived from static analysis of the compiled object files. Values are reported in absolute bytes and as percentages of the available 4\,MB Flash and 384\,KB SRAM.
+Flash usage (model parameter arrays only; firmware code and HAL are excluded) and RAM usage (statically allocated program data) are derived from static analysis of the compiled object files. The same convention is applied to the BiLSTM baseline. Values are reported in absolute bytes and as percentages of the available 4\,MB Flash and 384\,KB SRAM.
 
 \subsection{Generalization to Unseen Window Lengths}
 
@@ -385,7 +386,7 @@ Both triggers are designed to keep update frequency low (on the order of months)
 A complete OTA update cycle consists of eight steps:
 
 \begin{enumerate}
-    \item \textbf{On-board data accumulation.} During normal operation, the BMS buffers sensor data ($V$, $I$, $T$, and the SoH estimate) in on-board storage, organized in the same window format used for training.
+    \item \textbf{On-board data accumulation.} During normal operation, the BMS buffers sensor data ($V$, $I$, $T$, $t$, and the SoH estimate) in on-board storage, organized in the same window format used for training.
     \item \textbf{Periodic upload.} When the buffer reaches a capacity threshold or a time interval elapses, the accumulated data are uploaded to the cloud via the vehicle's Telematics Control Unit (TCU). Upload occurs only when the vehicle is in a safe state (parked, sufficient battery, good network signal).
     \item \textbf{Retraining trigger evaluation.} The cloud checks the two trigger conditions (Section~\ref{sec:ch3_ota_triggers}) against the uploaded SoH estimates.
     \item \textbf{Model retraining.} If triggered, a new SoC model is trained on the cloud using data accumulated since the last update. The training pipeline mirrors the one described in this chapter, with SoC as the target variable.
