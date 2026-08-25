@@ -25,6 +25,7 @@
 *.vrb
 *.glg
 *.glo
+*.glo-abr
 *.gls
 *.ist
 *.acn

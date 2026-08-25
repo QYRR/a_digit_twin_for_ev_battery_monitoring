@@ -24,7 +24,7 @@ As introduced in Chapter~\ref{introduction}, a BMS tracks two fundamental parame
 SoH = \frac{C_\text{current}}{C_\text{initial}} \times 100\%
 \end{equation}
 
-A fresh battery starts at $SoH = 100\%$; when the value drops below 70--80\%, the battery is considered to have reached the end of its useful automotive life. SoH can also be defined in terms of internal resistance growth: $SoH_R = (R_{EOL} - R_{current}) / (R_{EOL} - R_{new})$, where $R$ denotes internal resistance and $EOL$ stands for end of life. This thesis uses the capacity-based definition, as it directly affects driving range and matches the labeling convention of the datasets used in the experiments.
+When SoH drops below 70--80\%, the battery is generally considered to have reached the end of its useful automotive life. SoH can also be defined in terms of internal resistance growth: $SoH_R = (R_{EOL} - R_{current}) / (R_{EOL} - R_{new})$, where $R$ denotes internal resistance and $EOL$ stands for end of life. This thesis uses the capacity-based definition, as it directly affects driving range and matches the labeling convention of the datasets used in the experiments.
 
 \subsection{Battery Aging Mechanisms}
 
@@ -53,7 +53,7 @@ Three properties of battery aging make it difficult to model:
 \begin{enumerate}
     \item \textbf{Nonlinearity.} Capacity does not fade at a constant rate. An initial period of relatively fast decline (SEI stabilization) is followed by a long, slow linear phase, which may eventually give way to an accelerated ``knee point'' after which capacity drops sharply. Simple linear extrapolation cannot capture this trajectory.
 
-    \item \textbf{Multi-factor coupling.} Temperature, C-rate, depth of discharge, and average SoC level interact in non-additive ways. Degradation data collected under one set of conditions (e.g., high temperature, moderate C-rate) does not linearly predict degradation under another set (e.g., low temperature, high C-rate). A training dataset must cover a sufficiently broad combination of operating conditions for the model to generalize.
+    \item \textbf{Multi-factor coupling.} Temperature, C-rate, depth of discharge, and average SoC level interact in non-additive ways. Degradation data collected under one set of conditions (e.g., high temperature, moderate C-rate) do not linearly predict degradation under another set (e.g., low temperature, high C-rate). A training dataset must cover a sufficiently broad combination of operating conditions for the model to generalize.
 
     \item \textbf{Path dependence.} A battery's current SoH depends not just on how many cycles it has undergone, but on \emph{how} it aged. Two batteries both at $SoH = 85\%$ can have very different internal resistance, OCV curve shapes, and future degradation trajectories if one aged through high-temperature storage and the other through aggressive cycling. Models must learn representations robust to this diversity of aging paths.
 \end{enumerate}
@@ -102,7 +102,7 @@ Early data-driven SoH work used classical ML algorithms. Support Vector Regressi
 
 Deep neural networks reduce the reliance on manual feature engineering by learning hierarchical representations from data. In SoH estimation, the most widely studied architectures are:
 
-\textbf{LSTM and BiLSTM.} Long Short-Term Memory networks handle time-series data through gating mechanisms (input, forget, and output gates) that mitigate the vanishing gradient problem of standard RNNs. In the SoH context, an LSTM can learn to track the slow evolution of battery capacity from sequences of voltage, current, and temperature measurements. Bidirectional LSTM (BiLSTM) processes the sequence in both forward and backward directions, capturing full temporal context. BiLSTM is among the highest-performing architectures in the SoH literature, reporting mean absolute errors below 2\% on public benchmarks. Sammartino et al. deployed a BiLSTM on an SPC58 automotive MCU~\autocite{Sammartino2021}, making it one of the few complete ``training-to-deployment'' works and the baseline for this thesis.
+\textbf{LSTM and BiLSTM.} Long Short-Term Memory networks handle time-series data through gating mechanisms (input, forget, and output gates) that mitigate the vanishing gradient problem of standard RNNs. In the SoH context, an LSTM can learn to track the slow evolution of battery capacity from sequences of voltage, current, and temperature measurements. Bidirectional LSTM (BiLSTM) processes the sequence in both forward and backward directions, capturing full temporal context. BiLSTM is among the highest-performing architectures in the SoH literature, reporting mean absolute errors below 2\% on public benchmarks. Sammartino et al. deployed a BiLSTM on a 120\,MHz SPC584B automotive MCU~\autocite{Sammartino2021}, making it one of the few complete ``training-to-deployment'' works and the baseline for this thesis.
 
 \textbf{CNN.} Convolutional neural networks extract local patterns from voltage curves or incremental capacity (IC) curves, associating shape changes (peak shifts, peak height reduction) with battery aging.
 
@@ -152,9 +152,9 @@ Table~\ref{tab:soh_methods} summarizes the five method families along the dimens
     \hline
     Electrochemical & Very high & Very high & No & --- \\
     ECM + Filter & Moderate & Low & Yes & --- \\
-    Classical ML (SVR/GPR/RF) & Moderate--High & Moderate & Limited & Yes (fixed vector) \\
-    Deep Learning (BiLSTM) & High & High & Limited & No (fixed sequence) \\
-    LightGBM (this work) & High & Very low & Yes & Yes (fixed vector) \\
+    Classical ML & Moderate--High & Moderate & Limited & Yes \\
+    Deep Learning & High & High & Limited & No \\
+    LightGBM & High & Very low & Yes & Yes \\
     \hline
     \end{tabular}
     \caption{Comparison of SoH estimation method categories}
@@ -185,7 +185,7 @@ The literature contains three broad strategies for jointly estimating SoC and So
 
 \textbf{Multi-task neural networks.} Shared CNN or LSTM encoders feed separate output heads for SoC and SoH regression, with a joint loss function combining both objectives. While these approaches can achieve good accuracy, they rarely discuss deployment feasibility or analyze how SoH estimation errors propagate to the SoC output.
 
-\textbf{Cascade architectures.} SoH is estimated first, and the SoH estimate is fed as an input to the SoC model. This design makes the hierarchical relationship between the two tasks explicit: SoH is the foundation, SoC is the upper layer. A cascade architecture is modular (each model can use the algorithm best suited to its task) and makes error propagation traceable. The dual-model framework used in this thesis, proposed by Alamin~\autocite{Alamin2023}, belongs to this category.
+\textbf{Cascade architectures.} SoH is estimated first, and the SoH estimate is fed as an input to the SoC model. This design makes the hierarchical relationship between the two tasks explicit: SoH is the foundation, SoC is the upper layer. A cascade architecture is modular (each model can use the algorithm best suited to its task) and makes error propagation traceable. The dual-model framework used in this thesis, proposed by Alamin~\autocite{Alamin2022}, belongs to this category.
 
 \subsection{Gaps in Existing Joint Estimation Work}
 
@@ -218,8 +218,8 @@ The \textbf{cloud--edge cooperative} architecture adopted in this thesis separat
 The deployment experiments in this thesis run on the SPC58EC80E5, an automotive-grade microcontroller by STMicroelectronics. It belongs to the SPC58 family, designed for body and powertrain applications:
 
 \begin{itemize}
-    \item \textbf{CPU}: Dual-core Power Architecture e200z420n3 at 120\,MHz. The dual core supports lockstep operation (both cores execute the same instruction stream and results are compared in hardware) for ASIL-D functional safety. This thesis uses single-core mode to maximize available compute.
-    \item \textbf{Memory}: 4\,MB on-chip Flash for code and read-only data (model parameters); 608\,KB on-chip SRAM for runtime data and stack. There is no external DRAM. All software must fit within these limits.
+    \item \textbf{CPU}: Dual-core Power Architecture e200z420n3 at 180\,MHz, with ISO~26262 ASIL-B functional safety support.
+    \item \textbf{Memory}: 4\,MB on-chip Flash for code and read-only data (model parameters); 384\,KB on-chip SRAM for runtime data and stack. There is no external DRAM. All software must fit within these limits.
     \item \textbf{Peripherals}: CAN FD, LIN, Ethernet, and FlexRay automotive communication interfaces. The thesis does not directly exercise these; model inference runs on the CPU, with results logged over a serial connection to a PC.
     \item \textbf{Toolchain}: Code compilation and flashing use \textbf{SPC5Studio IDE}, an Eclipse-based environment integrating the GCC Power Architecture cross-compiler and the SPC5 hardware abstraction layer. Program execution and debugging use \textbf{UDE Starterkit} (Universal Debug Engine, PLS), which provides breakpoints, single-stepping, memory inspection, and variable monitoring. Performance profiling data (execution cycle counts, Flash/RAM usage) are obtained from the SPC5Studio linker output (map file) and UDE cycle counters.
 \end{itemize}
@@ -234,7 +234,7 @@ Translating a trained model from Python to an MCU requires generating self-conta
 
 \begin{itemize}
     \item \textbf{Split threshold array}: for each node, the threshold value (internal node) or the predicted value (leaf node).
-    \item \textbf{Feature index array}: for each node, the index of the feature used for splitting. For leaves, this is set to $\text{\#Features} + 1$, serving as a leaf marker.
+    \item \textbf{Feature index array}: for each node, the index of the feature used for splitting. For leaves, this is set to a sentinel value one greater than the highest valid feature index, serving as a leaf marker.
     \item \textbf{Right child index array}: node indices are stored in pre-order, so the left child is implicitly the next element in the array. Only the right child index needs explicit storage.
     \item \textbf{Root index array}: the starting position of each tree in the node arrays, enabling a simple loop over all trees during inference.
 \end{itemize}
@@ -243,11 +243,11 @@ Inference traverses each tree from its root: read the feature value, compare aga
 
 \subsection{Prior MCU Deployment: the BiLSTM Baseline}
 
-Sammartino et al. deployed a BiLSTM model for SoH estimation on an SPC58 MCU~\autocite{Sammartino2021}. This is among the very few works covering the full training-to-deployment pipeline, and it is the direct baseline for this thesis. The authors used SPC5Studio AI --- a neural-network code generation component within the SPC5Studio IDE --- to convert a Keras BiLSTM model into C code. SPC5Studio AI supports a subset of neural network architectures, and BiLSTM happens to be among the supported ones. The deployment was validated through latency and memory measurements.
+Sammartino et al. deployed a BiLSTM model for SoH estimation on a 120\,MHz SPC584B MCU~\autocite{Sammartino2021}. This is among the very few works covering the full training-to-deployment pipeline, and it is the direct baseline for this thesis. The authors used SPC5Studio AI --- a neural-network code generation component within the SPC5Studio IDE --- to convert a Keras BiLSTM model into C code. SPC5Studio AI supports a subset of neural network architectures, and BiLSTM happens to be among the supported ones. The deployment was validated through latency and memory measurements.
 
 The work has three notable limitations. First, it assumes a fixed window of 20 samples and full-charge starting conditions (SoC = 100\%), assumptions that do not hold in everyday driving. Second, the model's inference cost scales with the input sequence length, so a longer window means a more expensive inference. Third, the data split draws training, validation, and test sets from the same cell, so cross-cell generalization is not evaluated.
 
-This thesis replicates the BiLSTM baseline on the same hardware, using the same data split and evaluation protocol, to ensure a fair comparison. Chapter~\ref{experiment} presents the results.
+This thesis replicates the BiLSTM baseline on the same hardware, using the thesis's own 64/16/20 cycle-level split and the first-window evaluation protocol of Sammartino et al., to ensure a fair comparison. Chapter~\ref{experiment} presents the results.
 
 
 \section{Digital Twin for Battery Systems}

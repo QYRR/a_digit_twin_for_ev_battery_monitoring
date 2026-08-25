@@ -1,10 +1,6 @@
 \chapter{Introduction}
 \label{introduction}
 
-\begin{comment}
-    introduction: motivation (why we are using batteries, due to carbon print and sustainability), problem you target and why it is a problem, then your solution, thesis outline.
-\end{comment}
-
 \section{Motivation}
 
 \subsection*{Industry background: the EV market}
@@ -44,7 +40,7 @@ This thesis focuses on \textbf{SoH estimation}. Unlike SoC, SoH degrades slowly 
 
 Unreliable SoH estimates carry serious consequences. Overestimating remaining health can lead to unexpected performance drops, insufficient power delivery, or safety hazards. Underestimating it may trigger premature battery replacement, wasting economic value.
 
-Accurate SoH estimation is therefore a foundational task in modern EV design — and not only for its own sake. SoH plays a decisive role in SoC estimation, and the relationship goes deeper than the obvious capacity scaling ($SoH \times C_\text{initial}$). As a battery ages, its internal electrochemical characteristics shift: the open-circuit voltage curve changes shape, the internal resistance increases, and the dynamic response under load is altered. In effect, \textbf{a battery at $SoH = 90\%$ and a battery at $SoH = 75\%$ behave as different systems}, and a SoC model calibrated for one aging stage will not perform well at another. An accurate, up-to-date SoH estimate is therefore the key that tells the BMS which SoC model — or which set of model parameters — to apply at any point in the battery's life. Getting SoH right is the prerequisite for a reliable BMS, and it is the problem this thesis tackles head-on.
+Accurate SoH estimation is therefore a foundational task in modern EV design — and not only for its own sake. SoH plays a decisive role in SoC estimation, and the relationship goes deeper than the obvious capacity scaling ($SoH \times C_\text{initial}$). As a battery ages, its internal electrochemical characteristics shift: the open-circuit voltage curve changes shape, the internal resistance increases, and the dynamic response under load is altered. In effect, \textbf{a battery at $SoH = 90\%$ and a battery at $SoH = 75\%$ behave as different systems}, and an SoC model calibrated for one aging stage will not perform well at another. An accurate, up-to-date SoH estimate is therefore the key that tells the BMS which SoC model — or which set of model parameters — to apply at any point in the battery's life. Getting SoH right is the prerequisite for a reliable BMS, and it is the problem this thesis tackles head-on.
 
 
 \section{Problem Statement}
@@ -73,29 +69,29 @@ Edge-based architectures address these concerns by running inference directly on
 
 \subsection*{Layer 4 --- The SoC--SoH coupling problem (this thesis' entry point)}
 
-Even if an ML model is successfully deployed on an edge MCU, a longer-term system-level issue arises when we consider how SoC and SoH interact in a real BMS.
+Even if an ML model is successfully deployed on an edge MCU, a longer-term system-level issue arises when considering how SoC and SoH interact in a real BMS.
 
-As noted in Section 1.2, SoC estimation depends on knowing the battery's true current capacity — which is $SoH \times C_\text{initial}$. When SoH degrades but the BMS continues to use a stale capacity value, SoC estimates become systematically biased, growing worse over time. In a complete BMS architecture, therefore, SoC and SoH cannot be treated in isolation: the SoC model must receive up-to-date SoH information to remain accurate.
+As discussed earlier, SoC estimation depends on knowing the battery's true current capacity — which is $SoH \times C_\text{initial}$. When SoH degrades but the BMS continues to use a stale capacity value, SoC estimates become systematically biased, growing worse over time. In a complete BMS architecture, therefore, SoC and SoH cannot be treated in isolation: the SoC model must receive up-to-date SoH information to remain accurate.
 
-This coupling points toward a \textbf{dual-model architecture}, originally proposed by Alamin~\autocite{Alamin2023}: a SoH model that tracks long-term degradation, and a SoC model that uses the SoH estimate as an input parameter. In this design, only the SoC model requires periodic over-the-air (OTA) updates — triggered when SoH has drifted by a meaningful amount — while the SoH model itself is built for long-term robustness and deployed once.
+This coupling points toward a \textbf{dual-model architecture}, originally proposed by Alamin~\autocite{Alamin2022}: a SoH model that tracks long-term degradation, and an SoC model that uses the SoH estimate as an input parameter. In this design, only the SoC model requires periodic over-the-air (OTA) updates — triggered when SoH has drifted by a meaningful amount — while the SoH model itself is built for long-term robustness and deployed once.
 
-In the course of this thesis, the author implemented and tested this dual-model pipeline. The SoH model, based on LightGBM, was trained, compiled, and deployed on hardware (see Chapter~\ref{methodology} and Chapter~\ref{experiment}). A SoC model was also trained with SoH as an input feature. However, preliminary experiments revealed that SoH estimation errors propagated into the SoC model, amplifying the overall error. This finding motivated the decision to focus the thesis on the SoH component: until the SoH model is sufficiently accurate and robust, the dual-model pipeline cannot function as intended.
+In the course of this thesis, the author implemented and tested this dual-model pipeline. The SoH model, based on LightGBM, was trained, compiled, and deployed on hardware (see Chapters~\ref{methodology} and~\ref{experiment}). An SoC model was also trained with SoH as an input feature. However, preliminary experiments revealed that SoH estimation errors propagated into the SoC model, amplifying the overall error. This finding motivated the decision to focus the thesis on the SoH component: until the SoH model is sufficiently accurate and robust, the dual-model pipeline cannot function as intended.
 
-Most existing data-driven SoH approaches — including the few that have reached automotive hardware — further compound this difficulty by assuming a fixed input window length. Sammartino et al.~\autocite{Sammartino2021}, who deployed a BiLSTM on the same SPC58 MCU family used in this thesis, fix the window at 20 samples and assume every discharge cycle begins from a fully charged battery. In real-world driving, discharge events start at arbitrary SoC levels, sampling rates can differ across BMS generations, and the shape and duration of voltage and current profiles shift as the battery ages. A fixed-window model trained on laboratory data may not remain accurate in the field, and deep learning architectures such as LSTMs cannot be dynamically resized at inference time. Training a new model for changed conditions requires collecting new data, running the full pipeline on a server, and delivering the updated model via OTA — a logistically expensive process that is impractical to perform frequently at fleet scale.
+Most existing data-driven SoH approaches — including the few that have reached automotive hardware — further compound this difficulty by assuming a fixed input window length. Sammartino et al.~\autocite{Sammartino2021}, who deployed a BiLSTM on the same SPC58 MCU family used in this thesis, fix the window at 20 samples and assume every discharge cycle begins from a fully charged battery. In real-world driving, discharge events start at arbitrary SoC levels, sampling rates can differ across BMS generations, and the shape and duration of voltage and current profiles shift as the battery ages. A fixed-window model trained on laboratory data may not remain accurate in the field, and deep learning architectures such as LSTMs cannot be dynamically resized at inference time. Training a new model for changed conditions requires collecting new data, running the full pipeline on a server, and delivering the updated model via OTA — a logistically expensive process that is impractical to repeat frequently across a fleet.
 
 These observations converge on a clear priority: \textbf{the SoH model must be both accurate enough to anchor the SoC estimator, and robust enough to handle variable input conditions without frequent retraining.} Getting SoH right is not an end in itself — it is the prerequisite for a deployable dual-model BMS.
 
 
 \section{Research Aims}
 
-This thesis operates within a broader \textbf{Digital Twin} framework proposed by Alamin~\autocite{Alamin2023}. The architecture envisions two on-board ML models working in concert: a \textbf{SoH model} that tracks long-term battery degradation, and a \textbf{SoC model} that receives the SoH estimate as an input. When the SoH estimate drifts beyond a threshold, the cloud retrains the SoC model (which depends on SoH) and delivers the update over the air (OTA). The SoH model itself is designed for deployment-time robustness and should not require frequent updates.
+This thesis operates within a broader \textbf{Digital Twin} framework proposed by Alamin~\autocite{Alamin2022}. The architecture envisions two on-board ML models working in concert: a \textbf{SoH model} that tracks long-term battery degradation, and a \textbf{SoC model} that receives the SoH estimate as an input. When the SoH estimate drifts beyond a threshold, the cloud retrains the SoC model (which depends on SoH) and delivers the update over the air (OTA). The SoH model itself is designed for deployment-time robustness and should not require frequent updates.
 
 Within this framework, the present thesis focuses on the \textbf{SoH component} and on the design of the OTA mechanism that would serve the SoC model. The work consists of three interconnected efforts:
 
 \begin{enumerate}
     \item \textbf{A lightweight SoH estimation model trained for input-length robustness.} A gradient-boosted decision tree ensemble (LightGBM) is trained on data segmented with multiple window lengths ($wlen \in \{20, 30, 40, 50, 60\}$). Because the model operates on a fixed-size feature vector rather than on a raw temporal sequence, a single ensemble can process windows of arbitrary length without modification. The model is compiled to C code and deployed on an automotive-grade microcontroller, delivering real-time inference without cloud dependency.
 
-    \item \textbf{Preliminary experimentation with the dual-model pipeline.} A SoC estimation model incorporating the SoH estimate as an input feature was trained and evaluated. The experiment confirmed that SoH errors propagate into SoC predictions, reinforcing the conclusion that \textbf{SoH accuracy must be established first} before the full dual-model architecture can deliver reliable end-to-end performance. This insight defines the scope of the thesis: it concentrates on SoH as the foundational layer, while the SoC integration remains a target for future work.
+    \item \textbf{Preliminary experimentation with the dual-model pipeline.} An SoC estimation model incorporating the SoH estimate as an input feature was trained and evaluated. The experiment confirmed that SoH errors propagate into SoC predictions, reinforcing the conclusion that \textbf{SoH accuracy must be established first} before the full dual-model architecture can deliver reliable end-to-end performance. This insight defines the scope of the thesis: it concentrates on SoH as the foundational layer, while the SoC integration remains a target for future work.
 
     \item \textbf{An over-the-air (OTA) update mechanism (design).} The OTA mechanism is designed to support remote updates of the SoC model as the battery ages. The design covers the full update lifecycle: on-board data accumulation, cloud-side retraining triggers, secure model packaging and transmission, A/B-partition on-device installation, and a fallback to a factory-programmed golden model.
 \end{enumerate}
@@ -105,16 +101,16 @@ In summary, this thesis builds the SoH foundation of a dual-model Digital Twin B
 
 \section{Contributions}
 
-The Digital Twin dual-model architecture underpinning this thesis was proposed by Alamin~\autocite{Alamin2023}. Within that framework, the author's contributions are as follows:
+The Digital Twin dual-model architecture underpinning this thesis was proposed by Alamin~\autocite{Alamin2022}. Within that framework, the author's contributions are as follows:
 
 \begin{enumerate}
     \item \textbf{Multi-length segmentation and compact feature extraction.} A preprocessing strategy is developed that segments battery discharge data into windows of five different lengths and extracts a fixed ten-dimensional feature vector from each window. This enables a single model to handle arbitrary input window sizes, removing the need to train separate models for different sampling configurations.
 
-    \item \textbf{Lightweight LightGBM-based SoH estimation model.} A gradient-boosted decision tree ensemble is trained for SoH regression, with hyperparameters optimized through Bayesian search using the Optuna framework. The resulting model balances estimation accuracy with a small memory footprint suitable for embedded deployment. On public benchmark datasets, it matches or surpasses the accuracy of a BiLSTM baseline while reducing inference latency by a factor of 11--30$\times$.
+    \item \textbf{Lightweight LightGBM-based SoH estimation model.} A gradient-boosted decision tree ensemble is trained for SoH regression, with hyperparameters optimized through Bayesian search using the Optuna framework. The resulting model balances estimation accuracy with a small memory footprint suitable for embedded deployment. On public benchmark datasets, it matches or surpasses the accuracy of a BiLSTM baseline while reducing inference latency by 11--30$\times$.
 
     \item \textbf{Deployment and validation on an automotive-grade MCU.} The full pipeline — feature extraction plus model inference — is deployed on the SPC58EC80E5 microcontroller by STMicroelectronics. The model is compiled to C code via the EDEN compiler (extended by collaborators to support LightGBM ensembles). Performance is evaluated along four dimensions: estimation accuracy, inference cycle count, RAM usage, and flash memory occupation. The BiLSTM baseline is reproduced on the same hardware for a fair, multi-dimensional comparison. Generalization to window lengths unseen during training is also assessed — a critical property for real-world deployment.
 
-    \item \textbf{Design of an over-the-air update architecture.} An OTA mechanism is designed to support remote updates of the SoC model triggered by SoH degradation. The design covers the full update lifecycle: on-board data accumulation, cloud-side retraining triggers, secure model packaging and transmission, A/B-partition on-device installation, and a fallback to a factory-programmed golden model in case of failure.
+    \item \textbf{Design of an over-the-air update architecture.} An OTA mechanism is designed to support remote updates of the SoC model triggered by SoH degradation. The design specifies the update trigger conditions, the secure delivery pipeline, and the on-device replacement strategy, including rollback and a factory-programmed golden model.
 \end{enumerate}
 
 

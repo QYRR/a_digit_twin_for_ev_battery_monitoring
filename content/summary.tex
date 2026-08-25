@@ -1,4 +1,9 @@
-% only the text for the summary
-\lipsum[1]
+% Summary of the thesis
 
-% $400\times$ is nicer than 400x
+Electric vehicles depend on lithium-ion batteries. Safe and efficient operation requires the Battery Management System to track the battery's State of Health (SoH), which measures the gradual loss of capacity caused by aging. SoH estimation is difficult. Aging is slow and non-linear, and it depends on temperature, load, and usage history.
+
+Existing methods have clear limits. Physics-based models are either too heavy for on-board use, or they drift as the battery ages. Machine learning models are accurate, but they rarely run on real automotive hardware. Most of them also expect fixed-size input windows, an assumption that breaks as operating conditions change.
+
+This thesis develops a lightweight SoH estimation model for edge deployment. The work forms the foundation layer of a Digital Twin architecture, in which an SoC model is refreshed over the air as the battery degrades. The approach trains a LightGBM tree ensemble on discharge windows of multiple lengths. Each window is summarized by a fixed vector of ten features, which makes the model independent of window length. The trained model is compiled to C and deployed on the SPC58EC80E5 automotive microcontroller. An over-the-air update mechanism is also designed.
+
+The model was tested on two public NASA datasets. It matches or exceeds a BiLSTM baseline in accuracy, while running 11 to 30 times faster. It also stays accurate on window lengths never seen during training. The full pipeline fits in less than 3\% of the available Flash memory. These results show that a single lightweight tree model can support reliable SoH monitoring on production automotive hardware, with little need for updates.
