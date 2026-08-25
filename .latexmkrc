@@ -3,4 +3,4 @@ $pdf_mode = 1;              # Use pdflatex
 $pdflatex = "pdflatex --shell-escape -interaction=nonstopmode %O %S";
 $biber = "biber %O %S";
 $aux_dir = "build";         # Auxiliary files go here; PDF stays in root
-$max_repeat = 3;            # Max number of pdflatex runs
+$max_repeat = 5;            # Max number of pdflatex runs (3 not enough for clean builds with cross-refs)
