@@ -112,7 +112,7 @@ Despite their offline accuracy, deep learning models carry structural limitation
     \item \textbf{Fixed input size.} An LSTM's sequence length is set at model definition and cannot change after deployment. If the BMS sampling rate or the effective trip duration changes in the field, the model cannot adapt.
     \item \textbf{Inference cost scales with sequence length.} Each LSTM time step requires matrix--vector multiplications and nonlinear activation functions (tanh, sigmoid). Doubling the window length roughly doubles the inference cost.
     \item \textbf{Runtime dependencies.} Deploying neural networks on MCUs requires specialized toolchains --- such as TensorFlow Lite for Microcontrollers or vendor-specific tools like STM X-CUBE-AI (for STM32) and SPC5Studio AI (for SPC58) --- which may not support all target architectures or model types.
-    \item \textbf{No support for variable-length inputs.} When a real-world driving segment produces a window shorter or longer than the model expects, the only options --- truncation or zero-padding --- degrade accuracy.
+    \item \textbf{Fixed tensor shape in deployed toolchains.} LSTM architectures support variable-length sequences in principle, but the SPC5Studio AI conversion used for the deployed baseline fixes the input tensor shape at deployment time. When a real-world driving segment produces a window shorter or longer than the model expects, the only options are truncation or zero-padding, which degrade accuracy.
     \item \textbf{Poor generalization to unseen window lengths.} As Chapter~\ref{experiment} will show, a BiLSTM trained on fixed-length windows can produce wildly fluctuating errors when tested on different lengths --- a problem that offline evaluation rarely catches.
 \end{enumerate}
 
@@ -127,7 +127,7 @@ For embedded SoH deployment, LightGBM offers several advantages over deep learni
 \begin{enumerate}
     \item \textbf{Minimal inference.} Tree inference consists of three operations: read a feature value, compare against a threshold, jump to a child node. Aggregating results across trees is just addition. There are no matrix multiplications, no activation functions, and no floating-point exponentials. On an MCU, each comparison is a CMP instruction, each jump a conditional branch --- the most basic operations the CPU performs.
 
-    \item \textbf{Natural input-length independence.} A decision tree model takes a fixed-size feature vector as input, not a raw time series. Whether the original window contains 20 samples or 60, the feature extraction step always outputs a 10-dimensional vector. The model structure never needs to change. This is the property that makes the multi-length training strategy of this thesis possible.
+    \item \textbf{Natural input-length independence through feature extraction.} Any model that consumes a fixed-size feature vector --- whether a decision tree or a neural network --- becomes independent of the raw window length, because the feature extraction step always outputs a 10-dimensional vector. This property, which belongs to the feature extraction design rather than to any specific model, is what makes the multi-length training strategy of this thesis possible.
 
     \item \textbf{Deployment simplicity.} A tree ensemble can be serialized into compact C arrays --- no external libraries, no runtime dependencies, no dynamic memory allocation. The generated \texttt{.c} file integrates directly into the BMS firmware build.
 
@@ -140,15 +140,13 @@ Alamin et al. first introduced GBDT to battery SoH estimation through feature-en
 
 \subsection{Summary of Methods}
 
-Table~\ref{tab:soh_methods} summarizes the five method families along the dimensions most relevant to this thesis.
-
 \begin{table}[H]
     \centering
     \setcellgapes{3pt}
     \makegapedcells
     \begin{tabular}{c c c c c}
     \hline
-    Method & Accuracy & Cost & MCU-Deployable & Input Flexibility \\
+    Method & Accuracy & Cost & \makecell{MCU- \\ Deployable} & \makecell{Input \\ Flexibility} \\
     \hline
     Electrochemical & Very high & Very high & No & --- \\
     ECM + Filter & Moderate & Low & Yes & --- \\
@@ -161,7 +159,14 @@ Table~\ref{tab:soh_methods} summarizes the five method families along the dimens
     \label{tab:soh_methods}
 \end{table}
 
-LightGBM offers the best balance of accuracy, computational efficiency, and deployability. The ``input flexibility'' column is particularly important: it is the only method that simultaneously achieves high accuracy and freedom from fixed-length inputs. This directly supports one of the core contributions of this thesis --- building a single model that handles variable window lengths without retraining.
+
+
+Table~\ref{tab:soh_methods} summarizes the five method families along the dimensions most relevant to this thesis.
+
+
+
+LightGBM offers the best balance of accuracy, computational efficiency, and deployability. The ``input flexibility'' column is particularly important: combined with feature extraction, it is the only approach in the table that simultaneously achieves high accuracy and freedom from fixed-length inputs. This directly supports one of the core contributions of this thesis --- building a single pipeline that handles variable window lengths without retraining.
+
 
 
 \section{Joint SoC and SoH Estimation}
@@ -221,7 +226,7 @@ The deployment experiments in this thesis run on the SPC58EC80E5, an automotive-
     \item \textbf{CPU}: Dual-core Power Architecture e200z420n3 at 180\,MHz, with ISO~26262 ASIL-B functional safety support.
     \item \textbf{Memory}: 4\,MB on-chip Flash for code and read-only data (model parameters); 384\,KB on-chip SRAM for runtime data and stack. There is no external DRAM. All software must fit within these limits.
     \item \textbf{Peripherals}: CAN FD, LIN, Ethernet, and FlexRay automotive communication interfaces. The thesis does not directly exercise these; model inference runs on the CPU, with results logged over a serial connection to a PC.
-    \item \textbf{Toolchain}: Code compilation and flashing use \textbf{SPC5Studio IDE}, an Eclipse-based environment integrating the GCC Power Architecture cross-compiler and the SPC5 hardware abstraction layer. Program execution and debugging use \textbf{UDE Starterkit} (Universal Debug Engine, PLS), which provides breakpoints, single-stepping, memory inspection, and variable monitoring. Performance profiling data (execution cycle counts, Flash/RAM usage) are obtained from the SPC5Studio linker output (map file) and UDE cycle counters.
+    \item \textbf{Toolchain}: Code compilation and flashing use \textbf{SPC5Studio IDE}, an Eclipse-based environment integrating the GCC Power Architecture cross-compiler and the SPC5 hardware abstraction layer. Program execution and debugging use \textbf{UDE Starterkit} (Universal Debug Engine, PLS), which provides breakpoints, single-stepping, memory inspection, and variable monitoring. Cycle counts are measured with the MCU's system timer, and Flash/RAM usage is derived from the compiled object files, as described in Chapter~\ref{methodology}.
 \end{itemize}
 
 The SPC58EC80E5 is the core computing unit of ST's BMS evaluation kit, which also includes an electrical isolation unit (for safe separation between the high-voltage battery pack and the low-voltage MCU) and a battery analog front-end (for per-cell voltage and temperature sensing). The author assembled and configured this full hardware environment. The thesis deploys the model on the SPC58 board alone, feeding pre-recorded test data over serial to the MCU. This isolates the inference workload from the physical variables introduced by the AFE and battery cells, enabling clean benchmarking.

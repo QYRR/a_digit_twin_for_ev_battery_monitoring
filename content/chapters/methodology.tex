@@ -46,18 +46,16 @@ The work uses two public NASA lithium-ion battery datasets, summarized in Table~
 
 \begin{table}[H]
     \centering
-    \begin{adjustbox}{width={0.9\textwidth}, totalheight={\textheight}, keepaspectratio}
     \setcellgapes{3pt}
     \makegapedcells
     \begin{tabular}{c c c c}
     \hline
     Dataset & Battery Type & Sampling Rate & SoH Label \\
     \hline
-    NASA Battery (NBD) \autocite{nasa_battery_2007} & 18650 Li-ion & 0.09\,Hz & Capacity per cycle \\
-    \makecell{Randomized Battery Usage \\ (NRD) \autocite{nasa_data_randomized}} & 18650 LCO (28 cells) & 0.33\,Hz & SoH per cycle \\
+    \makecell{NASA Battery \\ (NBD) \autocite{nasa_battery_2007}} & 18650 Li-ion & 0.09\,Hz & Capacity per cycle \\
+    \makecell{Randomized Battery \\ Usage (NRD) \autocite{nasa_data_randomized}} & \makecell{18650 LCO \\ (28 cells)} & 0.33\,Hz & SoH per cycle \\
     \hline
     \end{tabular}
-    \end{adjustbox}
     \caption{Datasets used in this work}
     \label{tab:dataset_source}
 \end{table}
@@ -87,25 +85,40 @@ The split proceeds in two stages. First, 80\% of the discharge cycles are assign
 
 \subsection{Motivation}
 
-Most published SoH models, including the BiLSTM baseline~\autocite{Sammartino2021}, operate on fixed-length input windows. The BiLSTM was trained with 20-sample windows; it cannot process a 40-sample or 60-sample window without architectural changes. In the field, however, the effective window duration varies: the BMS sampling rate may differ across hardware revisions, and discharge events can be arbitrarily short (a brief trip) or long (a highway drive). A model tied to a single window length cannot adapt to all the situations it will encounter in the field.
+Most published SoH models, including the BiLSTM baseline~\autocite{Sammartino2021}, operate on fixed-length input windows. The BiLSTM was trained with 20-sample windows; its deployed implementation fixes the input tensor shape, so a 40-sample or 60-sample window cannot be handled without retraining. In the field, however, the effective window duration varies: the BMS sampling rate may differ across hardware revisions, and discharge events can be arbitrarily short (a brief trip) or long (a highway drive). A model tied to a single window length cannot adapt to all the situations it will encounter in the field.
 
 The approach taken here is straightforward: instead of training on a single window length, the model is trained on several at once. If the model sees features computed from windows of many different lengths during training, it learns that window length itself should not affect the SoH estimate. After deployment, the model remains accurate under a range of operating conditions without retraining.
 
 \subsection{Method}
 
-For each discharge cycle (a sequence of $n$ samples), sliding windows are extracted for every window length $wlen \in \{20, 30, 40, 50, 60\}$ with a stride equal to the window length (no overlap):
+For each discharge cycle (a sequence of $n$ samples), sliding windows are extracted for every window length $wlen \in \{20, 30, 40, 50, 60\}$ with a stride equal to the window length (no overlap), as formalized in Algorithm~\ref{alg:segmentation}.
 
-\begin{verbatim}
-for wlen in [20, 30, 40, 50, 60]:
-    step = wlen
-    for i in range(0, n - wlen + 1, step):
-        x_win = data[i : i + wlen]
-        y_win = label[i + wlen - 1]
-\end{verbatim}
+\begin{algorithm}
+\caption{Multi-length window segmentation. Each discharge cycle is sliced into non-overlapping windows for every window length $wlen \in \{20,30,40,50,60\}$; the label of each window is taken from its last sample.}
+\label{alg:segmentation}
+\begin{algorithmic}[1]
+\LineComment{$n$ is the number of samples in the current discharge cycle}
+\LineComment{$data[i]$ is the $i$-th sample, $label[i]$ its target label}
+\LineComment{(discharge capacity for NBD, SoH for NRD)}
+\ForAll{$wlen \in \{20, 30, 40, 50, 60\}$}
+\For{$i \gets 0$ \textbf{to} $n - wlen$ \textbf{step} $wlen$}
+\Comment{no overlap between windows}
+\State $x_{win} \gets data[i : i + wlen]$
+\State $y_{win} \gets label[i + wlen - 1]$
+\Comment{label of the last sample in the window}
+\EndFor
+\EndFor
+\end{algorithmic}
+\end{algorithm}
 
 A cycle with $n = 210$ samples produces 10 windows at $wlen = 20$, 7 windows at $wlen = 30$, and so on. The five lengths were chosen because they span the range commonly used in the SoH literature and together cover from short windows (capturing local dynamics) to longer windows (capturing trend information).
 
 Figure~\ref{fig:ch3_window_segementation} illustrates the process: a single discharge sequence is sliced into multiple groups of windows, one group per window length. Each window becomes an independent training sample.
+
+
+\subsection{Label Assignment}
+
+The label for each window is taken from the last row of that window (\texttt{label[i + wlen - 1]}). This convention was originally designed for SoC estimation, where the label (SoC) changes at each time step and the last value in the window is the most recent. For SoH, the label is constant across the entire cycle, so taking the last row is equivalent to taking any row.
 
 \begin{figure}[H]
     \centering
@@ -113,10 +126,6 @@ Figure~\ref{fig:ch3_window_segementation} illustrates the process: a single disc
     \caption{Multi-length segmentation: each discharge cycle is sliced into windows of five different lengths, producing training samples at multiple temporal resolutions.}
     \label{fig:ch3_window_segementation}
 \end{figure}
-
-\subsection{Label Assignment}
-
-The label for each window is taken from the last row of that window (\texttt{label[i + wlen - 1]}). This convention was originally designed for SoC estimation, where the label (SoC) changes at each time step and the last value in the window is the most recent. For SoH, the label is constant across the entire cycle, so taking the last row is equivalent to taking any row.
 
 \subsection{Data Augmentation Effect}
 
@@ -229,7 +238,7 @@ The code for data preprocessing, feature extraction, model training, and evaluat
 
 \subsection{Contrast with Deep Learning}
 
-A practical difference between LightGBM and the BiLSTM baseline is worth highlighting. Because a BiLSTM's input dimension is fixed at training time, covering five window lengths requires training five separate BiLSTM models. LightGBM requires one --- the same ensemble handles all window lengths because the feature vector size does not change. At deployment time, the Flash holds a single model, regardless of the BMS sampling configuration.
+A practical difference between LightGBM and the BiLSTM baseline is worth highlighting. Because the deployed BiLSTM's input tensor shape is fixed by the SPC5Studio AI conversion, covering five window lengths requires training five separate BiLSTM models. LightGBM requires one --- the same model handles all window lengths because the feature vector size does not change. At deployment time, the Flash holds a single model, regardless of the BMS sampling configuration.
 
 
 \section{Model Compilation: EDEN to C}
@@ -347,7 +356,13 @@ Accuracy is reported for two subsets of the test data:
 
 \subsection{Inference Efficiency}
 
-The CPU cycle count for one complete inference (feature extraction plus model traversal) is measured. The corresponding wall-clock latency is $t_{inf} = cycles_{CPU} / 180\,\text{MHz}$. The BiLSTM baseline is measured under identical conditions.
+The CPU cycle count for one complete inference (feature extraction plus model traversal) is measured. The corresponding wall-clock latency is obtained by dividing the measured cycle count by the core clock frequency $f_{core} = 180\,\text{MHz}$:
+
+\begin{equation}
+t_{inference} = \frac{cycles_{CPU}}{180\,\text{MHz}}
+\end{equation}
+
+The BiLSTM baseline is measured under identical conditions.
 
 \subsection{Memory Footprint}
 
@@ -357,7 +372,7 @@ Flash usage (model parameter arrays only; firmware code and HAL are excluded) an
 
 The model is trained on $wlen \in \{20, 30, 40, 50, 60\}$. To test robustness, MAE is also evaluated on window lengths not seen during training: $wlen \in \{10, 35, 55, 75\}$. These test lengths are chosen to fall both inside and outside the training range. A single LightGBM model is evaluated on all test lengths without modification --- the feature extraction pipeline handles any window length natively.
 
-For the BiLSTM baseline, which cannot process variable-length inputs, unseen window lengths are accommodated through heuristic adaptation --- trimming the oldest samples from longer windows, and zero-padding for shorter ones --- to provide a reference comparison.
+For the BiLSTM baseline, whose deployed conversion fixes the input tensor shape, unseen window lengths are accommodated through heuristic adaptation --- trimming the oldest samples from longer windows, and zero-padding for shorter ones --- to provide a reference comparison.
 
 
 \section{OTA Update Architecture Design}

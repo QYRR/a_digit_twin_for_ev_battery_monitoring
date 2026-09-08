@@ -24,25 +24,21 @@
 %
 \makebox[\textwidth]{\null\hfill\def\arraystretch{2}% % to change the spacing change this number
     \begin{minipage}[t]{.375\textwidth}\raggedright
-        \begin{adjustbox}{width={\textwidth},totalheight={\textheight},keepaspectratio} % with adjustbox it adapts to the lengths of the names, remove it if you want the same font dimension
-        \begin{tabular}[t]{@{}l@{}}
+        \begin{tabular}[t]{@{}p{\textwidth}@{}}
             \fixednamesfont \textbf{\thesissupervisortext} \\
             \namesfont \xmakefirstuc{\thesissupervisoronetitle}~\thesissupervisoronename~\MakeUppercase{\thesissupervisoronesurname}\\
             \namesfont \xmakefirstuc{\thesissupervisortwotitle}~\thesissupervisortwoname~\MakeUppercase{\thesissupervisortwosurname}\\
             % \namesfont \xmakefirstuc{\thesissupervisorthreetitle}~\thesissupervisorthreename~\MakeUppercase{\thesissupervisorthreesurname}
         \end{tabular}
-        \end{adjustbox}
     \end{minipage}
     %
     \hfill
     %
     \begin{minipage}[t]{.375\textwidth}\raggedleft
-        \begin{adjustbox}{width={\textwidth},totalheight={\textheight},keepaspectratio} % with adjustbox it adapts to the lengths of the names, remove it if you want the same font dimension
-            \begin{tabular}[t]{@{}l@{}}
-                \fixednamesfont \textbf{\thesiscandidatetext} \\
-                \namesfont \thesiscandidatename~\MakeUppercase{\thesiscandidatesurname}
-            \end{tabular}
-        \end{adjustbox}
+        \begin{tabular}[t]{@{}l@{}}
+            \fixednamesfont \textbf{\thesiscandidatetext} \\
+            \namesfont \thesiscandidatename~\MakeUppercase{\thesiscandidatesurname}
+        \end{tabular}
     \end{minipage}\hfill\null
 } \\
 %
