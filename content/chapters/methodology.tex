@@ -42,7 +42,7 @@ Section~\ref{sec:ch3_ota} then describes the design of the OTA update mechanism 
 
 \subsection{Data Sources}
 
-The work uses two public NASA lithium-ion battery datasets, summarized in Table~\ref{tab:dataset_source}. Both are widely cited in the SoH estimation literature. The NBD dataset is the one used by the BiLSTM baseline~\autocite{Sammartino2021}, ensuring a fair accuracy comparison. The NBD consists of constant-current discharge cycles at 0.09\,Hz. The NRD dataset, in contrast, employs a randomized sequence of eight current loads (0.5--4\,A) that change every 5 minutes, producing irregular discharge profiles closer to real-world driving. With its 28 cells and randomized usage profiles, NRD provides a more challenging test of cross-cell generalization.
+The work uses two public NASA lithium-ion battery datasets, summarized in Table~\ref{tab:dataset_source}. Both are widely cited in the SoH estimation literature. The NBD dataset is the one used by the BiLSTM baseline~\autocite{Sammartino2021}, ensuring a fair accuracy comparison. The NBD consists of constant-current discharge cycles recorded at a 0.09\,Hz sampling rate. The NRD dataset, in contrast, employs a randomized sequence of eight current loads (0.5--4\,A) that change every 5 minutes, producing irregular discharge profiles closer to real-world driving. With its 28 cells and randomized usage profiles, NRD provides a more challenging test of cross-cell generalization.
 
 \begin{table}[H]
     \centering
@@ -60,7 +60,7 @@ The work uses two public NASA lithium-ion battery datasets, summarized in Table~
     \label{tab:dataset_source}
 \end{table}
 
-Each dataset consists of charge/discharge experiment logs. Each file contains rows of measurements (voltage $V$, current $I$, temperature $T$, relative timestamp $t$) collected during successive discharge cycles. Every row in a charge/discharge cycle shares the same SoH label --- the measured discharge capacity for that cycle. Figure~\ref{fig:ch3_inputdata_sample} shows the raw data structure.
+Each dataset consists of charge/discharge experiment logs. Each file contains rows of measurements (voltage $V$, current $I$, temperature $T$, relative timestamp $t$) collected during successive discharge cycles. Every row in a charge/discharge cycle shares the same SoH label --- the measured discharge capacity for NBD cycles, and the SoH percentage for NRD cycles. Figure~\ref{fig:ch3_inputdata_sample} shows the raw data structure.
 
 \subsection{Preprocessing}
 
@@ -77,7 +77,7 @@ Preprocessing consists of two steps. First, the raw data are grouped by discharg
 
 Data are partitioned at the discharge cycle level, not at the individual sample level. This is important: if rows from the same discharge cycle appeared in both training and test sets, the model could exploit within-cycle autocorrelation rather than learning genuine degradation patterns, inflating accuracy estimates.
 
-The split proceeds in two stages. First, 80\% of the discharge cycles are assigned to a combined training-plus-validation pool and 20\% to the test set. Second, the training-plus-validation pool is randomly partitioned into 80\% training and 20\% validation cycles. The resulting overall proportions are 64\% training, 16\% validation, and 20\% test. The same two-stage split is applied to both NBD and NRD.
+The split proceeds in two stages. First, 80\% of the discharge cycles are assigned to a combined training-plus-validation pool and 20\% to the test set. Second, the training-plus-validation pool is randomly partitioned into 80\% training and 20\% validation cycles. The resulting overall proportions are 64\% training, 16\% validation, and 20\% test. The same two-stage split is applied to both NBD and NRD. For NRD, the partition is additionally constrained by cross-cell isolation: all cycles of a given cell stay in the same split, so no test cycle comes from a cell seen during training.
 
 
 \section{Multi-Length Window Segmentation}
@@ -113,7 +113,7 @@ For each discharge cycle (a sequence of $n$ samples), sliding windows are extrac
 
 A cycle with $n = 210$ samples produces 10 windows at $wlen = 20$, 7 windows at $wlen = 30$, and so on. The five lengths were chosen because they span the range commonly used in the SoH literature and together cover from short windows (capturing local dynamics) to longer windows (capturing trend information).
 
-Figure~\ref{fig:ch3_window_segementation} illustrates the process: a single discharge sequence is sliced into multiple groups of windows, one group per window length. Each window becomes an independent training sample.
+Figure~\ref{fig:ch3_window_segmentation} illustrates the process: a single discharge sequence is sliced into multiple groups of windows, one group per window length. Each window becomes an independent training sample.
 
 
 \subsection{Label Assignment}
@@ -122,9 +122,9 @@ The label for each window is taken from the last row of that window (\texttt{lab
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{images/ch3_window_segementation.png}
+    \includegraphics[width=1\linewidth]{images/ch3_window_segmentation.png}
     \caption{Multi-length segmentation: each discharge cycle is sliced into windows of five different lengths, producing training samples at multiple temporal resolutions.}
-    \label{fig:ch3_window_segementation}
+    \label{fig:ch3_window_segmentation}
 \end{figure}
 
 \subsection{Data Augmentation Effect}
@@ -145,7 +145,7 @@ The feature set captures the statistical behavior of the battery during the disc
 
 Before extracting the final features, five intermediate signals are computed from the raw samples within each window, as shown in Table~\ref{tab:intermediate_signals}.
 
-Among these, $dV/dQ$ carries particular diagnostic value. In the battery literature, incremental capacity (IC) analysis uses the positions and heights of peaks in $dQ/dV$ (the reciprocal of $dV/dQ$) to identify degradation modes such as loss of active material and loss of lithium inventory. As the battery ages, these peaks shift in position and shrink in amplitude. Capturing the range of $dV/dQ$ within a window --- its mean, maximum, and minimum --- encodes these aging-induced changes.
+Among these, $dV/dQ$ carries particular diagnostic value. In the battery literature, incremental capacity (IC) analysis uses the positions and heights of peaks in $dQ/dV$ (the reciprocal of $dV/dQ$) to identify degradation modes such as loss of active material and loss of lithium inventory. As the battery ages, these peaks shift in position and shrink in amplitude~\autocite{dubarry2012}. Capturing the range of $dV/dQ$ within a window --- its mean, maximum, and minimum --- encodes these aging-induced changes.
 
 \begin{table}[H]
     \centering
@@ -183,11 +183,11 @@ The intermediate signals are summarized through averaging (and, for $dV/dQ$, thr
     \item Mean temperature  ---  $\text{mean}(T)$
 \end{enumerate}
 
-The key property of this feature vector is that its size is independent of the original window length. Whether the window contains 20 samples or 60, the output is always 10 numbers. This is the property that allows a single LightGBM model to process windows of arbitrary length.
+The key property of this feature vector is that its size is independent of the original window length. Whether the window contains 20 samples or 60, the output is always 10 numbers. This is the property that allows the pipeline to process windows of arbitrary length with a single model.
 
 \subsection{MCU Implementation}
 
-The same feature extraction logic is implemented twice: in Python (NumPy/Pandas) for offline training, and in hand-written C for on-board execution. The C implementation receives a raw data buffer ($V$, $I$, $T$, $t$ arrays of length $wlen$), computes the five intermediate signals sample by sample, then aggregates them into the ten statistical features (the means and extrema listed in Table~\ref{tab:intermediate_signals}). All arithmetic uses single-precision floating point. The SPC58EC80E5 includes a hardware FPU, so these operations execute at native speed with no software emulation overhead. The full C source is reproduced in Appendix~\ref{app:feature_extraction}.
+The same feature extraction logic is implemented twice: in Python (NumPy/Pandas) for offline training, and in hand-written C for on-board execution. The C implementation receives a raw data buffer ($V$, $I$, $T$, $t$ arrays of length $wlen$), computes the five intermediate signals sample by sample, then aggregates them into the ten statistical features (the means and extrema listed above). All arithmetic uses single-precision floating point. The SPC58EC80E5 includes a hardware FPU, so these operations execute at native speed with no software emulation overhead. The full C source is reproduced in Appendix~\ref{app:feature_extraction}.
 
 
 \section{Model Training and Hyperparameter Search}
@@ -195,13 +195,13 @@ The same feature extraction logic is implemented twice: in Python (NumPy/Pandas)
 
 \subsection{Choice of LightGBM}
 
-The rationale for choosing LightGBM was laid out in Chapter~\ref{background} (Section~\ref{sec:bg_soh_methods}). In brief: tree ensembles offer competitive regression accuracy, inference consists entirely of threshold comparisons and additions (no matrix multiplies, no activation functions), the model takes a fixed-size feature vector regardless of the original window length, and the ensemble can be compiled to self-contained C code with zero external dependencies. These properties align directly with the requirements of automotive MCU deployment.
+The rationale for choosing LightGBM was laid out in Chapter~\ref{background} (Section~\ref{sec:bg_soh_methods}). In brief: tree ensembles offer competitive regression accuracy, inference consists entirely of threshold comparisons and additions (no matrix multiplies, no activation functions), the model takes a fixed-size feature vector regardless of the original window length, and the ensemble can be compiled to self-contained C code with zero external dependencies. These properties align directly with the requirements of automotive MCU deployment~\autocite{ke2017}.
 
 \subsection{Bayesian Hyperparameter Search}
 
-LightGBM exposes several hyperparameters that govern model capacity, regularization, and training dynamics. Finding a configuration that balances estimation accuracy against model size (which determines Flash footprint) is non-trivial. A Bayesian search using Optuna (v4.2.0) explores the space efficiently. The search objective is minimization of MAE on the validation set. A total of 1{,}000 trials are run. Each trial trains to completion (the number of trees specified by \texttt{n\_estimators}); no early-stopping patience is applied.
+LightGBM exposes several hyperparameters that govern model capacity, regularization, and training dynamics. Finding a configuration that balances estimation accuracy against model size (which determines Flash footprint) is non-trivial. A Bayesian search using Optuna (v4.2.0) explores the space efficiently~\autocite{akiba2019}. The search objective is minimization of MAE on the validation set. A total of 1{,}000 trials are run. Each trial trains to completion (the number of trees specified by \texttt{n\_estimators}); no early-stopping patience is applied.
 
-Table~\ref{tab:hp_space} lists the search space. Two parameters are constrained by deployment requirements: \texttt{max\_depth} is capped at 8 and \texttt{num\_leaves} at 25. These caps prevent the search from producing models too large to fit in the MCU's Flash. A tree ensemble's Flash footprint scales as $O(N_{trees} \times 2^{depth})$. At depth 8, a single fully-grown tree contains at most $2^8 - 1 = 255$ nodes; with 400 trees, even the worst-case total (approximately 100{,}000 nodes, or 600\,KB) fits comfortably within the SPC58's 4\,MB Flash.
+Table~\ref{tab:hp_space} lists the search space. Two parameters are constrained by deployment requirements: \texttt{max\_depth} is capped at 8 and \texttt{num\_leaves} at 25. These caps prevent the search from producing models too large to fit in the MCU's Flash. A tree ensemble's Flash footprint scales as $O(N_{trees} \times 2^{depth})$. At depth 8, a fully-grown tree contains at most $2^9 - 1 = 511$ nodes; with 400 trees, even the worst-case total (approximately 200{,}000 nodes, or 1.2\,MB) fits comfortably within the SPC58's 4\,MB Flash.
 
 \begin{table}[H]
     \centering
@@ -299,11 +299,11 @@ The four arrays are declared \texttt{const} and placed in Flash. The exact Flash
 
 \subsection{Target Hardware}
 
-The deployment target is the SPC58EC80E5, an automotive-grade microcontroller by STMicroelectronics. Key specifications: dual-core Power Architecture e200z420n3@180\,MHz, 4\,MB on-chip Flash, 384\,KB on-chip SRAM, ISO~26262 ASIL-B support, and a full set of automotive communication peripherals (CAN FD, LIN, Ethernet). The device is part of ST's BMS evaluation kit, which also includes an electrical isolation unit and a battery analog front-end. The author assembled the full kit; the deployment described here uses the SPC58 board alone, feeding test data over a serial connection. This isolates the inference workload from the physical variables of the analog front-end and battery cells.
+The deployment target is the SPC58EC80E5, an automotive-grade microcontroller by STMicroelectronics~\autocite{spc58ec80e5_ds}. Key specifications: dual-core Power Architecture e200z420n3 at 180\,MHz, 4\,MB on-chip Flash, 384\,KB on-chip SRAM, ISO~26262 ASIL-B support, and a full set of automotive communication peripherals (CAN FD, LIN, Ethernet). The device is part of ST's BMS evaluation kit, which also includes an electrical isolation unit and a battery analog front-end. The author assembled the full kit; the deployment described here uses the SPC58 board alone, feeding test data over a serial connection. This isolates the inference workload from the physical variables of the analog front-end and battery cells.
 
 \subsection{Toolchain}
 
-Two software tools are used. \textbf{SPC5Studio IDE} provides the GCC Power Architecture cross-compiler, the SPC5 Hardware Abstraction Layer (HAL), and the Flash programming utility. Compilation uses \texttt{-O2} optimization. \textbf{UDE Starterkit} (Universal Debug Engine, PLS) provides run-control debugging: breakpoints, single-stepping, and variable monitoring.
+Two software tools are used. \textbf{SPC5Studio IDE} provides the GCC Power Architecture cross-compiler, the SPC5 \gls{HAL}, and the Flash programming utility. Compilation uses \texttt{-O2} optimization. \textbf{UDE Starterkit} (Universal Debug Engine, PLS) provides run-control debugging: breakpoints, single-stepping, and variable monitoring.
 
 \subsection{Firmware Integration}
 
@@ -324,7 +324,7 @@ Deployment validation has two aspects:
 
 \textbf{Functional correctness.} A small set of real discharge windows is run through the MCU, and the inference output is compared bit-for-bit against the Python model's output on the same data. The two match, confirming that the C implementation is logically equivalent to the Python reference. This check is performed once during initial deployment and not repeated.
 
-\textbf{Performance measurement.} CPU cycle counts are measured by running the inference pipeline on randomly generated window data (the cycle count depends on window length and model structure, not on the specific numerical values of the data). The measurement uses the MCU's system timer (STMD3): the firmware wraps the code region of interest in \texttt{benchmark\_start()} and \texttt{benchmark\_end()} calls, which reset and read the timer through the HAL's \texttt{stm\_lld} interface. Since the timer runs at 90\,MHz --- half the 180\,MHz core clock --- the raw tick count is doubled to obtain CPU cycles; the benchmark code is reproduced in Appendix~\ref{app:benchmark}. Multiple runs yield variations below 1\%, so single measurements are reported directly. Flash and RAM usage are derived from static analysis of the compiled object files: the model parameter arrays occupy Flash, and statically allocated program data occupy RAM.
+\textbf{Performance measurement.} CPU cycle counts are measured by running the inference pipeline on randomly generated window data (the cycle count depends on window length and model structure, not on the specific numerical values of the data). The measurement uses the MCU's system timer (STMD3): the firmware wraps the code region of interest in \texttt{benchmark\_start()} and \texttt{benchmark\_end()} calls, which reset and read the timer through the HAL's \texttt{stm\_lld} interface. Since the timer runs at 90\,MHz --- half the 180\,MHz core clock~\autocite{spc58ec80e5_ds} --- the raw tick count is doubled to obtain CPU cycles; the benchmark code is reproduced in Appendix~\ref{app:benchmark}. Multiple runs yield variations below 1\%, so single measurements are reported directly. Flash and RAM usage are derived from static analysis of the compiled object files: the model parameter arrays occupy Flash, and statically allocated program data occupy RAM.
 
 \textbf{Accuracy evaluation.} MAE and MSE are evaluated in the Python training environment on the test set, rather than by running every test window through the MCU. Since the MCU output has been verified to match the Python output, MCU-based accuracy evaluation would produce identical numbers at far greater effort.
 
@@ -402,7 +402,7 @@ A complete OTA update cycle consists of eight steps:
 
 \begin{enumerate}
     \item \textbf{On-board data accumulation.} During normal operation, the BMS buffers sensor data ($V$, $I$, $T$, $t$, and the SoH estimate) in on-board storage, organized in the same window format used for training.
-    \item \textbf{Periodic upload.} When the buffer reaches a capacity threshold or a time interval elapses, the accumulated data are uploaded to the cloud via the vehicle's Telematics Control Unit (TCU). Upload occurs only when the vehicle is in a safe state (parked, sufficient battery, good network signal).
+    \item \textbf{Periodic upload.} When the buffer reaches a capacity threshold or a time interval elapses, the accumulated data are uploaded to the cloud via the vehicle's \gls{TCU}. Upload occurs only when the vehicle is in a safe state (parked, sufficient battery, good network signal).
     \item \textbf{Retraining trigger evaluation.} The cloud checks the two trigger conditions (Section~\ref{sec:ch3_ota_triggers}) against the uploaded SoH estimates.
     \item \textbf{Model retraining.} If triggered, a new SoC model is trained on the cloud using data accumulated since the last update. The training pipeline mirrors the one described in this chapter, with SoC as the target variable.
     \item \textbf{Validation and packaging.} The retrained model is validated against a held-out subset of the new data. If accuracy improves measurably over the current model, the model parameters (the four EDEN arrays) are serialized, compressed, and digitally signed with the cloud's private key.

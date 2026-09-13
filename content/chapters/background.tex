@@ -9,7 +9,7 @@ This chapter provides the background needed to understand the work presented in 
 
 \subsection{Lithium-Ion Battery Basics}
 
-A lithium-ion cell consists of four main components. The \textbf{cathode} (positive electrode) determines the cell's voltage and capacity; common materials include lithium cobalt oxide (LCO), nickel-manganese-cobalt oxide (NMC), and lithium iron phosphate (LFP), each trading off energy density, cost, and lifespan. The \textbf{anode} (negative electrode) is typically graphite, which stores lithium ions during charging. The \textbf{electrolyte}, a lithium salt dissolved in organic solvents, enables ionic transport between the electrodes. The \textbf{separator}, a porous polymer membrane, prevents direct electrical contact while allowing ions to pass.
+A lithium-ion cell consists of four main components. The \textbf{cathode} (positive electrode) determines the cell's voltage and capacity; common materials include \gls{LCO}, \gls{NMC}, and \gls{LFP}, each trading off energy density, cost, and lifespan~\autocite{hannan2017}. The \textbf{anode} (negative electrode) is typically graphite, which stores lithium ions during charging. The \textbf{electrolyte}, a lithium salt dissolved in organic solvents, enables ionic transport between the electrodes. The \textbf{separator}, a porous polymer membrane, prevents direct electrical contact while allowing ions to pass.
 
 During discharge, lithium ions travel from the anode to the cathode through the electrolyte, while electrons flow through the external circuit to power the load. During charging, an external voltage reverses this process. The cell's operating voltage typically ranges from about 2.5\,V (fully discharged) to 4.2\,V (fully charged), depending on the cathode chemistry.
 
@@ -17,14 +17,14 @@ For SoH estimation, the relevant point is that these materials undergo irreversi
 
 \subsection{SoC and SoH --- Core BMS Metrics}
 
-As introduced in Chapter~\ref{introduction}, a BMS tracks two fundamental parameters. State of Charge (SoC) indicates the remaining usable energy as a fraction of the current maximum capacity, while State of Health (SoH) quantifies long-term degradation:
+As introduced in Chapter~\ref{introduction}, a BMS tracks two fundamental parameters~\autocite{gabbar2021}. State of Charge (SoC) indicates the remaining usable energy as a fraction of the current maximum capacity, while State of Health (SoH) quantifies long-term degradation:
 
 \begin{equation}
 \label{eq:soh_bg}
 SoH = \frac{C_\text{current}}{C_\text{initial}} \times 100\%
 \end{equation}
 
-When SoH drops below 70--80\%, the battery is generally considered to have reached the end of its useful automotive life. SoH can also be defined in terms of internal resistance growth: $SoH_R = (R_{EOL} - R_{current}) / (R_{EOL} - R_{new})$, where $R$ denotes internal resistance and $EOL$ stands for end of life. This thesis uses the capacity-based definition, as it directly affects driving range and matches the labeling convention of the datasets used in the experiments.
+When SoH drops below 80\%, the battery is generally considered to have reached the end of its useful automotive life. SoH can also be defined in terms of internal resistance growth: $SoH_R = (R_{EOL} - R_{current}) / (R_{EOL} - R_{new})$, where $R$ denotes internal resistance and $EOL$ stands for end of life. This thesis uses the capacity-based definition, as it directly affects driving range and matches the labeling convention of the datasets used in the experiments.
 
 \subsection{Battery Aging Mechanisms}
 
@@ -32,26 +32,26 @@ Battery aging is driven by several interacting physical processes. Understanding
 
 \subsubsection*{SEI Growth}
 
-The most important degradation mechanism is the growth of the \textbf{Solid Electrolyte Interphase (SEI)}. During the first charge cycle, the electrolyte decomposes at the anode surface and forms a thin passivation layer. This layer allows lithium ions to pass but blocks electrons, protecting the anode from further reaction. Ideally, the SEI stabilizes after the first cycle. In practice, it continues to grow --- slowly but inexorably --- over the entire lifetime of the battery. Every molecule of SEI formed consumes active lithium that can no longer participate in charge/discharge reactions. SEI growth is the single largest contributor to capacity fade, and it accelerates at high temperatures and high SoC levels.
+The most important degradation mechanism is the growth of the \textbf{\gls{SEI}}. During the first charge cycle, the electrolyte decomposes at the anode surface and forms a thin passivation layer. This layer allows lithium ions to pass but blocks electrons, protecting the anode from further reaction. Ideally, the SEI stabilizes after the first cycle. In practice, it continues to grow --- slowly but inexorably --- over the entire lifetime of the battery. The lithium incorporated into the SEI can no longer participate in charge/discharge reactions. SEI growth is the single largest contributor to capacity fade, and it accelerates at high temperatures and high SoC levels~\autocite{palacin2016}.
 
 \subsubsection*{Cyclic Aging}
 
-Each charge/discharge cycle inflicts small, cumulative structural changes on the electrode materials. \textbf{Lithium plating} occurs when lithium ions, unable to intercalate into the graphite fast enough (typically under low-temperature or high-rate charging), deposit as metallic lithium on the anode surface. The plated lithium reacts with the electrolyte to form additional SEI, consuming yet more active lithium. In severe cases, metallic lithium can grow as dendrites that pierce the separator, creating an internal short circuit --- a serious safety hazard.
+Each charge/discharge cycle inflicts small, cumulative structural changes on the electrode materials. \textbf{Lithium plating} occurs when lithium ions, unable to intercalate into the graphite fast enough (typically under low-temperature or high-rate charging), deposit as metallic lithium on the anode surface. The plated lithium reacts with the electrolyte to form additional SEI, consuming yet more active lithium. In severe cases, metallic lithium can grow as dendrites that pierce the separator, creating an internal short circuit --- a serious safety hazard~\autocite{palacin2016}.
 
-\textbf{Electrode particle cracking} results from the periodic expansion and contraction of active material particles as lithium ions move in and out of their crystal structure. Over hundreds or thousands of cycles, this mechanical stress causes particles to fracture. The newly exposed surfaces react with the electrolyte to form fresh SEI, while some fractured particles lose electrical contact entirely, permanently removing a portion of the active material from service.
+\textbf{Electrode particle cracking} results from the periodic expansion and contraction of active material particles as lithium ions move in and out of their crystal structure. Over hundreds or thousands of cycles, this mechanical stress causes particles to fracture. The newly exposed surfaces react with the electrolyte to form fresh SEI, while some fractured particles lose electrical contact entirely, permanently removing a portion of the active material from service~\autocite{palacin2016}.
 
-\textbf{Cathode structural degradation} involves irreversible phase transitions and the dissolution of transition metal ions (especially in layered NMC cathodes). The dissolved ions migrate to the anode and catalyze further SEI growth.
+\textbf{Cathode structural degradation} involves irreversible phase transitions and the dissolution of transition metal ions (especially in layered NMC cathodes). The dissolved ions migrate to the anode and catalyze further SEI growth~\autocite{palacin2016}.
 
 \subsubsection*{Calendar Aging}
 
-Even when a battery is not in use, degradation continues. Calendar aging is primarily driven by the ongoing thickening of the SEI --- the SEI--electrolyte interface never reaches true thermodynamic equilibrium. High temperature and high storage SoC are the strongest accelerants: heat provides the activation energy for side reactions, while a fully lithiated anode is more reactive toward the electrolyte. The slow thermal decomposition of organic electrolyte solvents also contributes, with decomposition products potentially forming gel-like species that hinder ion transport.
+Even when a battery is not in use, degradation continues. Calendar aging is primarily driven by the ongoing thickening of the SEI --- the SEI--electrolyte interface never reaches true thermodynamic equilibrium. High temperature and high storage SoC are the strongest accelerants: heat provides the activation energy for side reactions, while a fully lithiated anode is more reactive toward the electrolyte. The slow thermal decomposition of organic electrolyte solvents also contributes, with decomposition products potentially forming gel-like species that hinder ion transport~\autocite{palacin2016}.
 
 \subsubsection*{Why Aging Makes SoH Estimation Hard}
 
 Three properties of battery aging make it difficult to model:
 
 \begin{enumerate}
-    \item \textbf{Nonlinearity.} Capacity does not fade at a constant rate. An initial period of relatively fast decline (SEI stabilization) is followed by a long, slow linear phase, which may eventually give way to an accelerated ``knee point'' after which capacity drops sharply. Simple linear extrapolation cannot capture this trajectory.
+    \item \textbf{Nonlinearity.} Capacity does not fade at a constant rate. An initial period of relatively fast decline (SEI stabilization) is followed by a long, slow linear phase, which may eventually give way to an accelerated ``knee point'' after which capacity drops sharply~\autocite{fermincueto2020,severson2019}. Simple linear extrapolation cannot capture this trajectory.
 
     \item \textbf{Multi-factor coupling.} Temperature, C-rate, depth of discharge, and average SoC level interact in non-additive ways. Degradation data collected under one set of conditions (e.g., high temperature, moderate C-rate) do not linearly predict degradation under another set (e.g., low temperature, high C-rate). A training dataset must cover a sufficiently broad combination of operating conditions for the model to generalize.
 
@@ -70,25 +70,25 @@ This section reviews existing approaches to SoH estimation. The methods fall int
 
 \subsubsection*{Electrochemical Models}
 
-Electrochemical models describe battery behavior from first-principles physics. The most influential is the Pseudo-Two-Dimensional (P2D) model, which couples partial differential equations to describe lithium concentration distributions in the solid and electrolyte phases, electrochemical kinetics at the electrode--electrolyte interface, and potential distributions throughout the cell. P2D is among the most accurate battery models available and can directly represent degradation processes by adjusting physical parameters such as SEI thickness or active material volume fraction.
+Electrochemical models describe battery behavior from first-principles physics. The most influential is the \gls{P2D} model, which couples partial differential equations to describe lithium concentration distributions in the solid and electrolyte phases, electrochemical kinetics at the electrode--electrolyte interface, and potential distributions throughout the cell~\autocite{doyle1993}. P2D is among the most accurate battery models available and can directly represent degradation processes by adjusting physical parameters such as SEI thickness or active material volume fraction.
 
-The problem is computational cost. Solving the P2D model requires discretizing the equations in both space and time dimensions, producing tens of coupled nonlinear equations that must be solved at each time step. A single charge/discharge simulation can take minutes to tens of minutes. An automotive MCU must complete inference in milliseconds. Simplified versions, such as the Single Particle Model (SPM), reduce the load by approximating each electrode as a single spherical particle, but lose accuracy at high C-rates where electrolyte concentration gradients become significant. Even the simplest electrochemical models are too heavy for real-time execution on a BMS microcontroller.
+The problem is computational cost. Solving the P2D model requires discretizing the equations in both space and time dimensions, producing tens of coupled nonlinear equations that must be solved at each time step. A single charge/discharge simulation can take minutes to tens of minutes. An automotive MCU must complete inference in milliseconds. Simplified versions, such as the \gls{SPM}, reduce the load by approximating each electrode as a single spherical particle, but lose accuracy at high C-rates where electrolyte concentration gradients become significant~\autocite{santhanagopalan2006}. Even the simplest electrochemical models are too heavy for real-time execution on a BMS microcontroller.
 
 \subsubsection*{Equivalent Circuit Models and Kalman Filters}
 
-Equivalent circuit models (ECMs) take a different approach: instead of modeling the internal physics, they approximate the battery's external electrical behavior with networks of resistors and capacitors. Common topologies include the Rint model (one voltage source and one resistor), the first-order Thevenin model (one RC pair capturing charge-transfer and double-layer effects), and second-order RC models (two RC pairs with different time constants for electrochemical and concentration polarization). ECM parameters --- the OCV--SoC curve, internal resistance, and RC time constants --- are identified through pulse discharge tests or electrochemical impedance spectroscopy (EIS).
+Equivalent circuit models (ECMs) take a different approach: instead of modeling the internal physics, they approximate the battery's external electrical behavior with networks of resistors and capacitors. Common topologies include the Rint model (one voltage source and one resistor), the first-order Thevenin model (one RC pair capturing charge-transfer and double-layer effects), and second-order RC models (two RC pairs with different time constants for electrochemical and concentration polarization). ECM parameters --- the OCV--SoC curve, internal resistance, and RC time constants --- are identified through pulse discharge tests or \gls{EIS}~\autocite{ECM_EKF}.
 
 To estimate SoH from an ECM, the model is paired with a state observer. The Kalman filter family dominates this role:
 
 \begin{itemize}
     \item The \textbf{Extended Kalman Filter (EKF)} handles the battery's nonlinearity through first-order Taylor linearization. Plett's foundational work systematically established the EKF framework for BMS applications~\autocite{ECM_EKF}.
     \item \textbf{Dual and Joint EKF} schemes use parallel filter branches to estimate the fast-varying state (SoC) and the slow-varying parameters (internal resistance or capacity, from which SoH is inferred) simultaneously~\autocite{ECM_djEKF}.
-    \item The \textbf{Unscented Kalman Filter (UKF)} uses deterministic sigma-point sampling to propagate distributions through nonlinear transformations, avoiding EKF's linearization error~\autocite{ECM_UKF}.
+    \item The \textbf{\gls{UKF}} uses deterministic sigma-point sampling to propagate distributions through nonlinear transformations, avoiding EKF's linearization error~\autocite{ECM_UKF,plett2006spkf}.
     \item \textbf{Adaptive EKF} adjusts noise covariance matrices online, improving robustness when model uncertainty is high~\autocite{ECM_aEKF}.
     \item \textbf{Particle Filters (PF)} represent arbitrary distributions through Monte Carlo sampling, handling non-Gaussian noise and multi-modal scenarios~\autocite{ECM_PF}.
 \end{itemize}
 
-The ECM-plus-filter combination is mature, computationally cheap, and widely deployed in production BMS. Its fundamental limitation is parameter drift: ECM parameters depend on the battery's aging state. An ECM calibrated for a fresh battery becomes increasingly inaccurate as the battery ages, because the internal resistance, time constants, and even the shape of the OCV curve shift over time. Recalibrating requires laboratory testing --- impractical for vehicles already in the field. Furthermore, ECM accuracy degrades outside the calibrated temperature and current range, precisely where reliable monitoring is most needed.
+The ECM-plus-filter combination is mature, computationally cheap, and widely deployed in production BMS. Its fundamental limitation is parameter drift: ECM parameters depend on the battery's aging state. An ECM calibrated for a fresh battery becomes increasingly inaccurate as the battery ages, because the internal resistance, time constants, and even the shape of the OCV curve shift over time. Recalibrating requires laboratory testing --- impractical for vehicles already in the field. Furthermore, ECM accuracy degrades outside the calibrated temperature and current range, precisely where reliable monitoring is most needed~\autocite{ECM_EKF}.
 
 \subsection{Data-Driven Methods}
 
@@ -96,20 +96,19 @@ Data-driven methods sidestep the need for explicit physical equations. Instead, 
 
 \subsubsection*{Classical Machine Learning}
 
-Early data-driven SoH work used classical ML algorithms. Support Vector Regression (SVR) maps input features to a high-dimensional space for nonlinear regression; Gaussian Process Regression (GPR) provides both predictions and uncertainty estimates; random forests average predictions across many decision trees to reduce variance. These methods established that battery degradation patterns can be learned from operational data, but their accuracy depends heavily on the quality of hand-crafted features --- a domain-expertise bottleneck.
+Early data-driven SoH work used classical ML algorithms. Support Vector Regression (SVR) maps input features to a high-dimensional space for nonlinear regression; Gaussian Process Regression (GPR) provides both predictions and uncertainty estimates; random forests average predictions across many decision trees to reduce variance. These methods established that battery degradation patterns can be learned from operational data, but their accuracy depends heavily on the quality of hand-crafted features --- a domain-expertise bottleneck~\autocite{Nozarijouybari2024}.
 
 \subsubsection*{Deep Learning}
 
 Deep neural networks reduce the reliance on manual feature engineering by learning hierarchical representations from data. In SoH estimation, the most widely studied architectures are:
 
-\textbf{LSTM and BiLSTM.} Long Short-Term Memory networks handle time-series data through gating mechanisms (input, forget, and output gates) that mitigate the vanishing gradient problem of standard RNNs. In the SoH context, an LSTM can learn to track the slow evolution of battery capacity from sequences of voltage, current, and temperature measurements. Bidirectional LSTM (BiLSTM) processes the sequence in both forward and backward directions, capturing full temporal context. BiLSTM is among the highest-performing architectures in the SoH literature, reporting mean absolute errors below 2\% on public benchmarks. Sammartino et al. deployed a BiLSTM on a 120\,MHz SPC584B automotive MCU~\autocite{Sammartino2021}, making it one of the few complete ``training-to-deployment'' works and the baseline for this thesis.
+\textbf{LSTM and BiLSTM.} Long Short-Term Memory networks handle time-series data through gating mechanisms (input, forget, and output gates) that mitigate the vanishing gradient problem of standard RNNs~\autocite{hochreiter1997}. In the SoH context, an LSTM can learn to track the slow evolution of battery capacity from sequences of voltage, current, and temperature measurements. Bidirectional LSTM (BiLSTM) processes the sequence in both forward and backward directions, capturing full temporal context. BiLSTM is among the highest-performing architectures in the SoH literature, reporting mean absolute errors below 2\% on public benchmarks~\autocite{Nozarijouybari2024}. Sammartino et al. deployed a BiLSTM on a 120\,MHz SPC584B automotive MCU~\autocite{Sammartino2021}, making it one of the few complete ``training-to-deployment'' works and the baseline for this thesis.
 
 \textbf{CNN.} Convolutional neural networks extract local patterns from voltage curves or incremental capacity (IC) curves, associating shape changes (peak shifts, peak height reduction) with battery aging.
 
 Despite their offline accuracy, deep learning models carry structural limitations for on-board deployment:
 
 \begin{enumerate}
-    \item \textbf{Fixed input size.} An LSTM's sequence length is set at model definition and cannot change after deployment. If the BMS sampling rate or the effective trip duration changes in the field, the model cannot adapt.
     \item \textbf{Inference cost scales with sequence length.} Each LSTM time step requires matrix--vector multiplications and nonlinear activation functions (tanh, sigmoid). Doubling the window length roughly doubles the inference cost.
     \item \textbf{Runtime dependencies.} Deploying neural networks on MCUs requires specialized toolchains --- such as TensorFlow Lite for Microcontrollers or vendor-specific tools like STM X-CUBE-AI (for STM32) and SPC5Studio AI (for SPC58) --- which may not support all target architectures or model types.
     \item \textbf{Fixed tensor shape in deployed toolchains.} LSTM architectures support variable-length sequences in principle, but the SPC5Studio AI conversion used for the deployed baseline fixes the input tensor shape at deployment time. When a real-world driving segment produces a window shorter or longer than the model expects, the only options are truncation or zero-padding, which degrade accuracy.
@@ -120,7 +119,7 @@ Despite their offline accuracy, deep learning models carry structural limitation
 
 Gradient-boosted decision trees (GBDT) take a different approach. Instead of learning representations through neural layers, GBDT iteratively trains shallow decision trees, with each new tree fitting the residual errors of the ensemble so far.
 
-LightGBM improves on standard GBDT with two key innovations. \textbf{Histogram-based splitting} discretizes continuous features into bins and searches for splits on the histogram rather than on sorted feature values, dramatically reducing memory usage and training time. \textbf{Leaf-wise growth} chooses the leaf with the largest loss reduction to split at each step, rather than growing all leaves at the current level equally; this produces deeper, more asymmetric trees that reach a given accuracy with fewer nodes.
+LightGBM improves on standard GBDT with two key innovations. \textbf{Histogram-based splitting} discretizes continuous features into bins and searches for splits on the histogram rather than on sorted feature values, dramatically reducing memory usage and training time. \textbf{Leaf-wise growth} chooses the leaf with the largest loss reduction to split at each step, rather than growing all leaves at the current level equally; this produces deeper, more asymmetric trees that reach a given accuracy with fewer nodes~\autocite{ke2017}.
 
 For embedded SoH deployment, LightGBM offers several advantages over deep learning:
 
@@ -136,7 +135,7 @@ For embedded SoH deployment, LightGBM offers several advantages over deep learni
     \item \textbf{Competitive accuracy.} On tabular and time-series regression tasks, a well-tuned LightGBM often matches or surpasses small neural networks. Chapter~\ref{experiment} demonstrates this on two NASA battery datasets.
 \end{enumerate}
 
-Alamin et al. first introduced GBDT to battery SoH estimation through feature-engineering work~\autocite{feature_eng}. This thesis extends that direction in three ways: it formalizes the multi-length segmentation plus LightGBM joint training strategy; it deploys the resulting model on a production automotive MCU through the EDEN compiler; and it provides a multi-dimensional comparison against BiLSTM on identical hardware.
+Alamin et al. first introduced GBDT to battery SoH estimation through feature-engineering work~\autocite{feature_eng,alamin2023dataset}. This thesis extends that direction in three ways: it formalizes the multi-length segmentation plus LightGBM joint training strategy; it deploys the resulting model on a production automotive MCU through the EDEN compiler; and it provides a multi-dimensional comparison against BiLSTM on identical hardware.
 
 \subsection{Summary of Methods}
 
@@ -155,7 +154,7 @@ Alamin et al. first introduced GBDT to battery SoH estimation through feature-en
     LightGBM & High & Very low & Yes & Yes \\
     \hline
     \end{tabular}
-    \caption{Comparison of SoH estimation method categories}
+    \caption{Comparison of SoH estimation method categories. Input flexibility is provided by the feature-extraction stage and applies to any model consuming fixed-size features; the deployed deep-learning baseline lacks it because its toolchain fixes the input tensor shape.}
     \label{tab:soh_methods}
 \end{table}
 
@@ -165,7 +164,7 @@ Table~\ref{tab:soh_methods} summarizes the five method families along the dimens
 
 
 
-LightGBM offers the best balance of accuracy, computational efficiency, and deployability. The ``input flexibility'' column is particularly important: combined with feature extraction, it is the only approach in the table that simultaneously achieves high accuracy and freedom from fixed-length inputs. This directly supports one of the core contributions of this thesis --- building a single pipeline that handles variable window lengths without retraining.
+LightGBM offers the best balance of accuracy, computational efficiency, and deployability. The ``input flexibility'' column is particularly important: feature extraction plus LightGBM is the only combination in the table that simultaneously achieves high accuracy and freedom from fixed-length inputs at very low computational cost. This directly supports one of the core contributions of this thesis --- building a single pipeline that handles variable window lengths without retraining.
 
 
 
@@ -214,13 +213,13 @@ Where should a BMS run its ML models? Two paths exist.
 
 \textbf{Cloud inference} sends battery data through the vehicle's telematics unit to remote servers. The models can be arbitrarily large and can be trained on fleet-wide aggregated data. The trade-offs are latency (hundreds of milliseconds round-trip), continuous bandwidth consumption (multi-cell data at Hz frequencies, per vehicle), loss of coverage in tunnels and remote areas, and the privacy implications of streaming detailed operational data off the vehicle.
 
-\textbf{Edge inference} runs the model locally on the BMS microcontroller. Latency drops to microseconds, no connectivity is needed, and data stays on the vehicle. The trade-off is hardware: an automotive MCU offers a few hundred KB of RAM, a few MB of Flash, and a CPU core at tens to low hundreds of MHz --- roughly five orders of magnitude fewer resources than the server on which the model was trained.
+\textbf{Edge inference} runs the model locally on the BMS microcontroller. Latency drops to microseconds, no connectivity is needed, and data stays on the vehicle. The trade-off is hardware: an automotive MCU offers a few hundred KB of RAM, a few MB of Flash, and a CPU core at tens to low hundreds of MHz --- roughly five orders of magnitude fewer resources than the server on which the model was trained. Even purpose-built tiny-ML approaches target this regime: Bonsai and ProtoNN, for example, compress predictors to a few kilobytes for microcontrollers with 2\,KB of RAM~\autocite{bonsai2017,protonn2017}.
 
 The \textbf{cloud--edge cooperative} architecture adopted in this thesis separates concerns: the edge handles real-time inference (low latency, offline-capable, private), while the cloud handles model training and periodic retraining (computationally unconstrained, fleet-data access). The two sides communicate through OTA updates (Section~\ref{sec:bg_ota}).
 
 \subsection{Target Hardware: SPC58EC80E5}
 
-The deployment experiments in this thesis run on the SPC58EC80E5, an automotive-grade microcontroller by STMicroelectronics. It belongs to the SPC58 family, designed for body and powertrain applications:
+The deployment experiments in this thesis run on the SPC58EC80E5, an automotive-grade microcontroller by STMicroelectronics~\autocite{spc58ec80e5_ds}. It belongs to the SPC58 family, designed for body and powertrain applications:
 
 \begin{itemize}
     \item \textbf{CPU}: Dual-core Power Architecture e200z420n3 at 180\,MHz, with ISO~26262 ASIL-B functional safety support.
@@ -229,11 +228,11 @@ The deployment experiments in this thesis run on the SPC58EC80E5, an automotive-
     \item \textbf{Toolchain}: Code compilation and flashing use \textbf{SPC5Studio IDE}, an Eclipse-based environment integrating the GCC Power Architecture cross-compiler and the SPC5 hardware abstraction layer. Program execution and debugging use \textbf{UDE Starterkit} (Universal Debug Engine, PLS), which provides breakpoints, single-stepping, memory inspection, and variable monitoring. Cycle counts are measured with the MCU's system timer, and Flash/RAM usage is derived from the compiled object files, as described in Chapter~\ref{methodology}.
 \end{itemize}
 
-The SPC58EC80E5 is the core computing unit of ST's BMS evaluation kit, which also includes an electrical isolation unit (for safe separation between the high-voltage battery pack and the low-voltage MCU) and a battery analog front-end (for per-cell voltage and temperature sensing). The author assembled and configured this full hardware environment. The thesis deploys the model on the SPC58 board alone, feeding pre-recorded test data over serial to the MCU. This isolates the inference workload from the physical variables introduced by the AFE and battery cells, enabling clean benchmarking.
+The SPC58EC80E5 is the core computing unit of ST's BMS evaluation kit, which also includes an electrical isolation unit (for safe separation between the high-voltage battery pack and the low-voltage MCU) and a battery \gls{AFE} for per-cell voltage and temperature sensing. The author assembled and configured this full hardware environment. The thesis deploys the model on the SPC58 board alone, feeding pre-recorded test data over serial to the MCU. This isolates the inference workload from the physical variables introduced by the AFE and battery cells, enabling clean benchmarking.
 
 \subsection{ML-to-MCU Compilation}
 
-Translating a trained model from Python to an MCU requires generating self-contained C code that runs without dynamic memory allocation, without external libraries, and without operating system support. For neural networks, the main options are vendor-specific tools: STM X-CUBE-AI targets STM32 ARM Cortex-M MCUs, while SPC5Studio AI provides comparable functionality for SPC58 Power Architecture devices. Both are limited to specific neural network architectures, and neither supports tree-based models.
+Translating a trained model from Python to an MCU requires generating self-contained C code that runs without dynamic memory allocation, without external libraries, and without operating system support. For neural networks, the main options are vendor-specific tools: STM X-CUBE-AI targets STM32 ARM Cortex-M MCUs, while SPC5Studio AI provides comparable functionality for SPC58 Power Architecture devices. Both are limited to specific neural network architectures, and neither supports tree-based models. Compiler-based approaches for tiny devices follow the same principle of generating self-contained code from trained models~\autocite{gopinath2019}.
 
 \textbf{EDEN compiler.} EDEN (Efficient Decision tree Ensembles) is an open-source compiler originally designed for random forest deployment on IoT edge nodes~\autocite{Eden}. For this thesis, it was extended by collaborators to support LightGBM's gradient-boosted tree format. The compiler transforms each tree into four static arrays:
 
@@ -248,11 +247,11 @@ Inference traverses each tree from its root: read the feature value, compare aga
 
 \subsection{Prior MCU Deployment: the BiLSTM Baseline}
 
-Sammartino et al. deployed a BiLSTM model for SoH estimation on a 120\,MHz SPC584B MCU~\autocite{Sammartino2021}. This is among the very few works covering the full training-to-deployment pipeline, and it is the direct baseline for this thesis. The authors used SPC5Studio AI --- a neural-network code generation component within the SPC5Studio IDE --- to convert a Keras BiLSTM model into C code. SPC5Studio AI supports a subset of neural network architectures, and BiLSTM happens to be among the supported ones. The deployment was validated through latency and memory measurements.
+Sammartino et al. deployed a BiLSTM model for SoH estimation on a 120\,MHz SPC584B MCU~\autocite{Sammartino2021}. This is among the very few works covering the full training-to-deployment pipeline~\autocite{kumar2018fpga}, and it is the direct baseline for this thesis. The authors used SPC5Studio AI --- a neural-network code generation component within the SPC5Studio IDE --- to convert a Keras BiLSTM model into C code. SPC5Studio AI supports a subset of neural network architectures, and BiLSTM happens to be among the supported ones. The deployment was validated through latency and memory measurements.
 
 The work has three notable limitations. First, it assumes a fixed window of 20 samples and full-charge starting conditions (SoC = 100\%), assumptions that do not hold in everyday driving. Second, the model's inference cost scales with the input sequence length, so a longer window means a more expensive inference. Third, the data split draws training, validation, and test sets from the same cell, so cross-cell generalization is not evaluated.
 
-This thesis replicates the BiLSTM baseline on the same hardware, using the thesis's own 64/16/20 cycle-level split and the first-window evaluation protocol of Sammartino et al., to ensure a fair comparison. Chapter~\ref{experiment} presents the results.
+This thesis replicates the BiLSTM baseline on the SPC58EC80E5, using the thesis's own 64/16/20 cycle-level split and the first-window evaluation protocol of Sammartino et al., to ensure a fair comparison. Chapter~\ref{experiment} presents the results.
 
 
 \section{Digital Twin for Battery Systems}
@@ -260,9 +259,9 @@ This thesis replicates the BiLSTM baseline on the same hardware, using the thesi
 
 \subsection{Concept}
 
-A Digital Twin is a virtual representation of a physical asset, synchronized through real-time data, that supports monitoring, analysis, simulation, and control. The concept, formalized by Grieves and popularized by NASA in the context of spacecraft health management, has since spread to manufacturing, energy, aerospace, and automotive engineering.
+A Digital Twin is a virtual representation of a physical asset, synchronized through real-time data, that supports monitoring, analysis, simulation, and control. The concept, formalized by Grieves and popularized by NASA in the context of spacecraft health management, has since spread to manufacturing, energy, aerospace, and automotive engineering~\autocite{grieves2014,tao2019}.
 
-A digital twin system has three components: the \textbf{physical asset} (what is being modeled), the \textbf{virtual model} (the digital representation), and the \textbf{data link} connecting them. In this thesis, the physical asset is the vehicle's battery pack; the virtual model consists of the SoH and SoC estimation models; and the data link carries sensor data from the battery to the models (uplink) and updated model parameters from the cloud back to the vehicle (downlink, via OTA).
+A digital twin system has three components: the \textbf{physical asset} (what is being modeled), the \textbf{virtual model} (the digital representation), and the \textbf{data link} connecting them~\autocite{grieves2014}. In this thesis, the physical asset is the vehicle's battery pack; the virtual model consists of the SoH and SoC estimation models; and the data link carries sensor data from the battery to the models (uplink) and updated model parameters from the cloud back to the vehicle (downlink, via OTA).
 
 \subsection{Architecture Patterns}
 
@@ -276,7 +275,7 @@ Battery digital twins can be organized along the computation-location axis into 
 
 \subsection{Position of This Thesis}
 
-Prior work on battery digital twins has focused mainly on modeling: hybrid ECM-plus-neural-network frameworks, degradation prediction algorithms, and multi-physics simulation. The questions of \emph{how} the edge model runs on a real MCU and \emph{how} it stays updated over the vehicle's lifetime have been largely set aside.
+Prior work on battery digital twins has focused mainly on modeling: hybrid ECM-plus-neural-network frameworks, degradation prediction algorithms, and multi-physics simulation~\autocite{tao2019,yang2020chain,alamin2023sox}. The questions of \emph{how} the edge model runs on a real MCU and \emph{how} it stays updated over the vehicle's lifetime have been largely set aside.
 
 This thesis works on both fronts. Chapters~\ref{methodology} and~\ref{experiment} validate the edge SoH model on production automotive hardware. Section~\ref{sec:ch3_ota} designs the OTA channel that maintains the SoC model over time. In the digital twin landscape, the thesis does not propose a new degradation algorithm; it demonstrates that a digital twin's edge layer can actually be built and deployed.
 
@@ -286,9 +285,9 @@ This thesis works on both fronts. Chapters~\ref{methodology} and~\ref{experiment
 
 \subsection{OTA Fundamentals}
 
-Over-the-air (OTA) updating refers to the remote delivery of software or firmware to embedded devices over wireless channels. In the automotive domain, OTA has become standard practice, driven by growing software complexity (a modern high-end vehicle contains over 100 million lines of code across dozens of ECUs), cybersecurity requirements, and the commercial appeal of continuously improving vehicles after sale. Regulation is catching up: the UN R156 standard mandates that manufacturers establish Software Update Management Systems (SUMS) with documented processes for update authorization, impact assessment, and traceability.
+Over-the-air (OTA) updating refers to the remote delivery of software or firmware to embedded devices over wireless channels. In the automotive domain, OTA has become standard practice, driven by growing software complexity (a modern high-end vehicle contains over 100 million lines of code across dozens of ECUs), cybersecurity requirements, and the commercial appeal of continuously improving vehicles after sale. Regulation is catching up: the UN R156 standard mandates that manufacturers establish Software Update Management Systems (SUMS) with documented processes for update authorization, impact assessment, and traceability~\autocite{unece_r156}.
 
-A typical automotive OTA cycle proceeds as follows: the cloud builds, compresses, encrypts, and signs the update package; the vehicle is notified and downloads the package when conditions are safe (parked, sufficient battery, good signal); the on-board OTA manager verifies integrity and authenticity; the package is written to the inactive storage partition (A/B scheme); the system switches partitions on the next boot; and the vehicle reports the outcome back to the cloud. The A/B partition mechanism is central: if the new version fails, the bootloader reverts to the previous partition, ensuring the vehicle is never left in an inoperable state.
+A typical automotive OTA cycle proceeds as follows: the cloud builds, compresses, encrypts, and signs the update package; the vehicle is notified and downloads the package when conditions are safe (parked, sufficient battery, good signal); the on-board OTA manager verifies integrity and authenticity; the package is written to the inactive storage partition (A/B scheme); the system switches partitions on the next boot; and the vehicle reports the outcome back to the cloud. The A/B partition mechanism is central: if the new version fails, the bootloader reverts to the previous partition, ensuring the vehicle is never left in an inoperable state~\autocite{guissouma2022}.
 
 \subsection{ML Model OTA vs.\ Firmware OTA}
 

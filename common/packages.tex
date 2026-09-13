@@ -7,7 +7,7 @@
 \usepackage{hyperref} % must be loaded before glossaries-extra
 
 % bibliography
-\usepackage[hyperref=true,backref=true,backend=biber,maxbibnames=9,maxcitenames=2,style=numeric,citestyle=numeric,sorting=none]{biblatex} % hyperref uses links, backref goes back to citations, uses biber as backend, with 9 names at most in bibliography and 2 in citations, citing using numbers, and sorting in citation order
+\usepackage[hyperref=true,backend=biber,style=ieee]{biblatex} % IEEE-style bibliography, biber backend, citation-order sorting
 % sorting can be also ydnt for year descending, name, title or ynt for ascending year
 
 \usepackage{adjustbox} % to resize boxes by keeping the same aspect ratio
@@ -32,7 +32,6 @@
 \usepackage{graphicx}               %  post-script images
 %\usepackage{iwona} % extra fonts, substitute standard ones
 \usepackage{listings} % to insert formatted code
-\usepackage{lipsum} % for lorem ipsum text, not needed in the real work
 \usepackage{makecell} % to change dimensions of cells, for math cases
 \usepackage{mathtools} % for additional commands
 \usepackage{mfirstuc} % to have capitalization capabilities
@@ -50,3 +49,4 @@
 \usepackage{url}            % simple URL typesetting
 \usepackage{verbatim} % for extended verbatim support
 \usepackage{xcolor} % to define colors and use standard CSS names add dvipsnames as option, but it clashes with xcolor loaded in toptesi, pay attention that if it goes in conflict with tikz/beamer, simply use \documentclass[usenames,dvipsnames]{beamer}, along with other custom options when defining the document class
+\usepackage{colortbl} % colored table cells, for heatmap tables

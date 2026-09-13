@@ -3,10 +3,14 @@
 \chapter{Feature Extraction C Source Code}
 \label{app:feature_extraction}
 
-The following C implementation of the feature extraction pipeline (Section~\ref{sec:ch3_features} of Chapter~\ref{methodology}) runs on the SPC58EC80E5 microcontroller. It receives arrays of raw measurements (voltage, current, temperature, time) for one window and produces the ten features listed in Table~\ref{tab:intermediate_signals}. The code avoids dynamic memory allocation (the MCU environment has no \texttt{malloc} support in this configuration); intermediate buffers are declared as stack arrays sized to the window length.
+The following C implementation of the feature extraction pipeline (Section~\ref{sec:ch3_features} of Chapter~\ref{methodology}) runs on the SPC58EC80E5 microcontroller. It receives arrays of raw measurements (voltage, current, temperature, time) for one window and produces the ten features defined in that section. The code avoids dynamic memory allocation (the MCU environment has no \texttt{malloc} support in this configuration); intermediate buffers are declared as stack arrays sized to the window length.
 
 \begin{lstlisting}[language=C, basicstyle=\small\ttfamily, columns=fullflexible]
 #include "compute_features.h"
+
+/* forward declarations (definitions follow below) */
+void compute_gradient(float* x, float* gradient, int length);
+void cumulative_trapezoid(float* x, float* y, float* ct_array, int length);
 
 
 void compute_features(float* voltage, float* current, float* temperature, float* time,
@@ -144,7 +148,7 @@ capacity_cycles = benchmark_end() * 2;
 \chapter{Python Dependencies}
 \label{app:dependencies}
 
-The training and evaluation pipeline was developed in Python. The complete dependency list of the training environment, as reported by \texttt{pip freeze}, is given in Table~\ref{tab:dependencies}. The core packages are LightGBM 4.5.0 (model training), Optuna 4.2.0 (hyperparameter search), and TensorFlow 2.18.0 with Keras 3.8.0 (BiLSTM baseline); NumPy and Pandas provide data handling.
+The training and evaluation pipeline was developed in Python. The core packages of the training environment (versions as reported by \texttt{pip freeze}) are given in Table~\ref{tab:dependencies}: LightGBM 4.5.0 (model training), Optuna 4.2.0 (hyperparameter search), and TensorFlow 2.18.0 with Keras 3.8.0 (BiLSTM baseline); NumPy and Pandas provide data handling.
 
 \begin{table}[H]
     \centering

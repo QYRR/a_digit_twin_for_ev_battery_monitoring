@@ -26,3 +26,29 @@
 \let\oldnorm\norm
 \def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
 \makeatother
+
+% heatmap cell colors, extracted from the original figure (images/ch4_generalization.png).
+% Rule: each panel normalizes MAE linearly to t in [0,1] (NBD: min 0.023, max 0.668;
+% NRD: min 1.7, max 28.2), then maps t onto a green -> yellow -> red tint scale
+% (pure hue blended with white). Greens/reds match xcolor blends exactly;
+% yellows use the figure's exact (slightly warm) hex values.
+% Full per-value mapping and update procedure: 修改/图4.1配色规律.md
+\definecolor{hg10}{HTML}{E5FFE5} % green!10!white
+\definecolor{hg15}{HTML}{D8FFD8} % green!15!white
+\definecolor{hg20}{HTML}{CCFFCC} % green!20!white
+\definecolor{hg25}{HTML}{BFFFBF} % green!25!white
+\definecolor{hg30}{HTML}{B2FFB2} % green!30!white
+\definecolor{hy08}{HTML}{FEFDE9} % yellow!8!white (figure: slightly warm)
+\definecolor{hy12}{HTML}{FEFCDF} % yellow!12!white
+\definecolor{hy16}{HTML}{FEFCD6} % yellow!16!white
+\definecolor{hy20}{HTML}{FEFBCC} % yellow!20!white
+\definecolor{hy24}{HTML}{FEFAC2} % yellow!24!white
+\definecolor{hy32}{HTML}{FEF8AD} % yellow!32!white
+\definecolor{hy36}{HTML}{FEF8A3} % yellow!36!white
+\definecolor{hr50}{HTML}{FF7F7F} % red!50!white
+\definecolor{hr55}{HTML}{FF7272} % red!55!white
+\definecolor{hr60}{HTML}{FF6666} % red!60!white
+\definecolor{hr70}{HTML}{FF4C4C} % red!70!white
+\definecolor{hr75}{HTML}{FF3F3F} % red!75!white
+\definecolor{hr80}{HTML}{FF3333} % red!80!white
+\newcommand{\hc}[2]{\cellcolor{#1}#2} % colored heatmap cell: #1=color name, #2=text
